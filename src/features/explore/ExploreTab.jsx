@@ -373,7 +373,7 @@ export default function ExploreTab({ checkIns, profile }) {
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold text-white">
-        Ontdekken<span className="text-sky-400">.</span>
+        Ontdekken<span className="text-cyan-300">.</span>
       </h2>
 
       <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-zinc-900/65 p-1 backdrop-blur-xl">

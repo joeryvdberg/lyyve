@@ -81,7 +81,7 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [], check
             <p className="text-sm text-zinc-400">@{form.username || 'jouwnaam'}</p>
             <h2 className="mt-1 text-2xl font-semibold text-white">
               {form.displayName || 'Jouw naam'}
-              <span className="text-sky-400">.</span>
+              <span className="text-cyan-300">.</span>
             </h2>
           </div>
         </div>

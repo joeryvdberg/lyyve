@@ -16,7 +16,7 @@ export default function StatsTab({ checkIns }) {
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold text-white">
-        Jouw stats<span className="text-sky-400">.</span>
+        Jouw stats<span className="text-cyan-300">.</span>
       </h2>
       <div className="grid grid-cols-3 gap-2">
         {stats.map((item) => (

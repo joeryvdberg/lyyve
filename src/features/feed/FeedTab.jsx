@@ -98,7 +98,7 @@ export default function FeedTab({ checkIns, profile }) {
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold text-white">
-        Vriendenfeed<span className="text-sky-400">.</span>
+        Vriendenfeed<span className="text-cyan-300">.</span>
       </h2>
       <p className="text-sm text-zinc-400">
         Hier zie je check-ins van vrienden: welke artiest ze zagen, hun score en opmerking.

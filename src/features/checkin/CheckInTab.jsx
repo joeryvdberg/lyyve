@@ -269,7 +269,7 @@ export default function CheckInTab({ onAddCheckIn }) {
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold text-white">
-        Nieuwe check-in<span className="text-sky-400">.</span>
+        Nieuwe check-in<span className="text-cyan-300">.</span>
       </h2>
       <div className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-2xl shadow-fuchsia-900/25 backdrop-blur-xl">
         <form className="space-y-3" onSubmit={handleSubmit}>
