@@ -209,13 +209,13 @@ function App() {
       <div className="pointer-events-none fixed inset-0 -z-0 bg-[radial-gradient(circle_at_top,#fb718544,transparent_38%),radial-gradient(circle_at_75%_20%,#8b5cf655,transparent_42%),radial-gradient(circle_at_20%_80%,#22d3ee33,transparent_38%)]" />
       <div className="pointer-events-none fixed inset-0 -z-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.02),transparent_30%,rgba(255,255,255,0.03),transparent_70%)]" />
       <main className="mx-auto w-full max-w-md px-4 pb-28 pt-6">
-        <header className="-mb-3 flex items-start justify-between">
+        <header className="mb-6 grid grid-cols-[44px_1fr_44px] items-center gap-3">
           <div className="h-11 w-11" />
-          <div className="rounded-2xl border border-white/10 bg-zinc-950/55 px-3 py-2 backdrop-blur-md">
+          <div className="mx-auto rounded-2xl border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent px-3 py-2 shadow-[0_12px_30px_-18px_rgba(14,165,233,0.8)] backdrop-blur-xl">
             <img
               src={`${ASSET_BASE}lyyve-logo.png`}
               alt="Lyyve logo"
-              className="mx-auto h-auto w-44"
+              className="mx-auto h-auto w-36 drop-shadow-[0_6px_14px_rgba(8,4,22,0.65)]"
             />
           </div>
           <button
