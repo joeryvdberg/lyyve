@@ -1,0 +1,16 @@
+{
+  "name": "Lyyve",
+  "short_name": "Lyyve",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#09031f",
+  "theme_color": "#09031f",
+  "icons": [
+    {
+      "src": "./app-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
