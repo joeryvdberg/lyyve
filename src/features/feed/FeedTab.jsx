@@ -156,11 +156,18 @@ export default function FeedTab({ checkIns, profile }) {
                       onClick={() => toggleLike(item.id)}
                       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
                         getInteraction(item.id).likedByMe
-                          ? 'border-rose-300/60 bg-rose-500/20 text-rose-200'
+                          ? 'border-cyan-300/60 bg-cyan-400/20 text-cyan-200'
                           : 'border-white/15 bg-zinc-900/80 text-zinc-300 hover:border-white/30'
                       }`}
                     >
-                      <span aria-hidden="true">{getInteraction(item.id).likedByMe ? '❤️' : '🤍'}</span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5">
+                        <path
+                          d="M12 20.5s-6.5-3.9-9.1-8C1.2 9.7 2.2 6.5 5.4 5.6c2-.5 3.8.3 4.9 2 1.1-1.7 2.9-2.5 4.9-2 3.2.9 4.2 4.1 2.5 6.9-2.6 4.1-9.1 8-9.1 8z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          fill={getInteraction(item.id).likedByMe ? 'currentColor' : 'none'}
+                        />
+                      </svg>
                       {getInteraction(item.id).likeCount}
                     </button>
                     <button
