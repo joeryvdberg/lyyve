@@ -10,7 +10,7 @@ function avatarInitials(displayName = '') {
   return initials.join('')
 }
 
-export default function ProfileTab({ profile, onSaveProfile, friends = [] }) {
+export default function ProfileTab({ profile, onSaveProfile, friends = [], checkIns = [] }) {
   const [form, setForm] = useState(profile)
   const [saveState, setSaveState] = useState('idle')
   const [isEditing, setIsEditing] = useState(false)
@@ -113,27 +113,12 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [] }) {
             <p className="text-lg font-semibold text-white">{following.length}</p>
             <p className="text-xs text-zinc-400">Volgend</p>
           </button>
+          <div className="text-left">
+            <p className="text-lg font-semibold text-white">{checkIns.length}</p>
+            <p className="text-xs text-zinc-400">Check-ins</p>
+          </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {friends.map((friend) => {
-            const active = friend.id === selectedFriendId
-            return (
-              <button
-                key={friend.id}
-                type="button"
-                onClick={() => setSelectedFriendId(friend.id)}
-                className={`shrink-0 rounded-xl border px-3 py-2 text-left transition ${
-                  active
-                    ? 'border-sky-300/60 bg-sky-500/15 text-white'
-                    : 'border-white/10 bg-zinc-950/60 text-zinc-200 hover:border-white/25'
-                }`}
-              >
-                <p className="text-sm font-semibold">{friend.displayName}</p>
-                <p className="text-xs text-zinc-400">@{friend.username}</p>
-              </button>
-            )
-          })}
-        </div>
+        <p className="text-xs text-zinc-500">Klik op Volgers of Volgend om de lijst te openen.</p>
       </article>
 
       {relationView && (

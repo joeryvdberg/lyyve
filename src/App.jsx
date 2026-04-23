@@ -194,6 +194,7 @@ function App() {
           profile={profile}
           onSaveProfile={handleSaveProfile}
           friends={friendProfiles}
+          checkIns={myCheckIns}
         />
       )
     }
