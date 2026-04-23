@@ -211,7 +211,7 @@ function App() {
       <main className="mx-auto w-full max-w-md px-4 pb-28 pt-6">
         <header className="mb-6 grid grid-cols-[44px_1fr_44px] items-center gap-3">
           <div className="h-11 w-11" />
-          <img src={`${ASSET_BASE}lyyve-logo-white.png`} alt="Lyyve logo" className="mx-auto h-auto w-40" />
+          <img src={`${ASSET_BASE}lyyve-logo-white-blue.png`} alt="Lyyve logo" className="mx-auto h-auto w-40" />
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
