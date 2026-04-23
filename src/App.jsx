@@ -211,13 +211,7 @@ function App() {
       <main className="mx-auto w-full max-w-md px-4 pb-28 pt-6">
         <header className="mb-6 grid grid-cols-[44px_1fr_44px] items-center gap-3">
           <div className="h-11 w-11" />
-          <div className="mx-auto rounded-2xl border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent px-3 py-2 shadow-[0_12px_30px_-18px_rgba(14,165,233,0.8)] backdrop-blur-xl">
-            <img
-              src={`${ASSET_BASE}lyyve-logo.png`}
-              alt="Lyyve logo"
-              className="mx-auto h-auto w-36 drop-shadow-[0_6px_14px_rgba(8,4,22,0.65)] [filter:drop-shadow(0_0_8px_rgba(236,72,153,0.25))_drop-shadow(0_0_12px_rgba(56,189,248,0.22))]"
-            />
-          </div>
+          <img src={`${ASSET_BASE}lyyve-logo-white.png`} alt="Lyyve logo" className="mx-auto h-auto w-40" />
           <button
             type="button"
             onClick={() => setActiveTab('profile')}

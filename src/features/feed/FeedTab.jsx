@@ -28,6 +28,7 @@ const friendFeedItems = [
 export default function FeedTab({ checkIns, profile }) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
+  const [openComments, setOpenComments] = useState({})
 
   const myFeedItems = checkIns.map((item) => ({
     id: item.id,
@@ -43,20 +44,7 @@ export default function FeedTab({ checkIns, profile }) {
 
   const feedItems = [...myFeedItems, ...friendFeedItems.map((item) => ({ ...item, isFriendPost: true }))]
 
-  const defaultInteractions = useMemo(
-    () =>
-      Object.fromEntries(
-        friendFeedItems.map((item) => [
-          item.id,
-          {
-            likedByMe: false,
-            likeCount: 0,
-            comments: [],
-          },
-        ])
-      ),
-    []
-  )
+  const defaultInteractions = useMemo(() => ({}), [])
 
   function getInteraction(itemId) {
     return interactions[itemId] ?? defaultInteractions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
@@ -101,6 +89,10 @@ export default function FeedTab({ checkIns, profile }) {
     })
 
     setCommentDrafts((prev) => ({ ...prev, [itemId]: '' }))
+  }
+
+  function toggleCommentPanel(itemId) {
+    setOpenComments((prev) => ({ ...prev, [itemId]: !prev[itemId] }))
   }
 
   return (
@@ -156,7 +148,7 @@ export default function FeedTab({ checkIns, profile }) {
             )}
             <div className="p-4 pt-3">
               <p className="text-sm leading-relaxed text-zinc-200">{item.note}</p>
-              {item.isFriendPost && item.id && (
+              {item.id && (
                 <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-zinc-950/40 p-3">
                   <div className="flex items-center gap-2">
                     <button
@@ -171,36 +163,58 @@ export default function FeedTab({ checkIns, profile }) {
                       <span aria-hidden="true">{getInteraction(item.id).likedByMe ? '❤️' : '🤍'}</span>
                       {getInteraction(item.id).likeCount}
                     </button>
-                    <span className="text-xs text-zinc-500">
-                      {getInteraction(item.id).comments.length} reacties
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    {getInteraction(item.id).comments.map((comment) => (
-                      <p key={comment.id} className="text-xs text-zinc-300">
-                        <span className="font-semibold text-white">{comment.user}:</span> {comment.text}
-                      </p>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={commentDrafts[item.id] ?? ''}
-                      onChange={(event) =>
-                        setCommentDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))
-                      }
-                      placeholder="Plaats een reactie..."
-                      className="w-full rounded-xl border border-white/10 bg-zinc-900/80 px-3 py-2 text-xs text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-                    />
                     <button
                       type="button"
-                      onClick={() => addComment(item.id)}
-                      className="rounded-xl border border-sky-400/35 bg-sky-500/20 px-3 py-2 text-xs font-semibold text-sky-200 hover:border-sky-300/60"
+                      onClick={() => toggleCommentPanel(item.id)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                        openComments[item.id]
+                          ? 'border-sky-300/55 bg-sky-500/20 text-sky-200'
+                          : 'border-white/15 bg-zinc-900/80 text-zinc-300 hover:border-white/30'
+                      }`}
                     >
-                      Plaats
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
+                        <path
+                          d="M7 10h10M7 14h6m-5 7l-4 2 1-5a8 8 0 1 1 2.3 2.3z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      {getInteraction(item.id).comments.length}
                     </button>
                   </div>
+
+                  {openComments[item.id] && (
+                    <>
+                      <div className="space-y-2">
+                        {getInteraction(item.id).comments.length === 0 && (
+                          <p className="text-xs text-zinc-500">Nog geen reacties. Wees de eerste.</p>
+                        )}
+                        {getInteraction(item.id).comments.map((comment) => (
+                          <p key={comment.id} className="text-xs text-zinc-300">
+                            <span className="font-semibold text-white">{comment.user}:</span> {comment.text}
+                          </p>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={commentDrafts[item.id] ?? ''}
+                          onChange={(event) =>
+                            setCommentDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))
+                          }
+                          placeholder="Plaats een reactie..."
+                          className="w-full rounded-xl border border-white/10 bg-zinc-900/80 px-3 py-2 text-xs text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => addComment(item.id)}
+                          className="rounded-xl border border-sky-400/35 bg-sky-500/20 px-3 py-2 text-xs font-semibold text-sky-200 hover:border-sky-300/60"
+                        >
+                          Plaats
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
