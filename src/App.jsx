@@ -184,7 +184,7 @@ function App() {
     }
 
     if (activeTab === 'explore') {
-      return <ExploreTab checkIns={myCheckIns} />
+      return <ExploreTab checkIns={myCheckIns} profile={profile} />
     }
 
     if (activeTab === 'profile') {
@@ -215,7 +215,7 @@ function App() {
             <img
               src={`${ASSET_BASE}lyyve-logo.png`}
               alt="Lyyve logo"
-              className="mx-auto h-auto w-36 drop-shadow-[0_6px_14px_rgba(8,4,22,0.65)]"
+              className="mx-auto h-auto w-36 drop-shadow-[0_6px_14px_rgba(8,4,22,0.65)] [filter:drop-shadow(0_0_8px_rgba(236,72,153,0.25))_drop-shadow(0_0_12px_rgba(56,189,248,0.22))]"
             />
           </div>
           <button

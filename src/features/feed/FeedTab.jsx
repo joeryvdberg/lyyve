@@ -1,25 +1,34 @@
+import { useMemo, useState } from 'react'
+
 const friendFeedItems = [
   {
+    id: 'friend-feed-noa-1',
     user: 'Noa',
     artist: 'Fred again..',
     event: 'Lowlands 2026',
     rating: 5,
     note: 'Bizar goeie energie. Hele tent ging los.',
+    createdAt: '2026-08-20T19:10:00Z',
     photoDataUrl:
       'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1600&q=70',
   },
   {
+    id: 'friend-feed-jesse-1',
     user: 'Jesse',
     artist: 'The Blaze',
     event: 'Pukkelpop 2026',
     rating: 4,
     note: 'Visueel heel sterk, sound iets te zacht.',
+    createdAt: '2026-08-16T20:45:00Z',
     photoDataUrl:
       'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1600&q=70',
   },
 ]
 
 export default function FeedTab({ checkIns, profile }) {
+  const [interactions, setInteractions] = useState({})
+  const [commentDrafts, setCommentDrafts] = useState({})
+
   const myFeedItems = checkIns.map((item) => ({
     id: item.id,
     user: profile.displayName || profile.username || 'Jij',
@@ -29,15 +38,69 @@ export default function FeedTab({ checkIns, profile }) {
     note: item.note,
     photoDataUrl: item.photoDataUrl || '',
     createdAt: item.createdAt || '',
+    isFriendPost: false,
   }))
 
-  const feedItems = [...myFeedItems, ...friendFeedItems]
+  const feedItems = [...myFeedItems, ...friendFeedItems.map((item) => ({ ...item, isFriendPost: true }))]
+
+  const defaultInteractions = useMemo(
+    () =>
+      Object.fromEntries(
+        friendFeedItems.map((item) => [
+          item.id,
+          {
+            likedByMe: false,
+            likeCount: 0,
+            comments: [],
+          },
+        ])
+      ),
+    []
+  )
+
+  function getInteraction(itemId) {
+    return interactions[itemId] ?? defaultInteractions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
+  }
 
   function formatTime(value) {
     if (!value) return 'Net toegevoegd'
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return 'Net toegevoegd'
     return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
+  }
+
+  function toggleLike(itemId) {
+    setInteractions((prev) => {
+      const current = prev[itemId] ?? defaultInteractions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
+      const nextLiked = !current.likedByMe
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          likedByMe: nextLiked,
+          likeCount: Math.max(0, current.likeCount + (nextLiked ? 1 : -1)),
+        },
+      }
+    })
+  }
+
+  function addComment(itemId) {
+    const rawComment = commentDrafts[itemId] ?? ''
+    const comment = rawComment.trim()
+    if (!comment) return
+
+    setInteractions((prev) => {
+      const current = prev[itemId] ?? defaultInteractions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          comments: [...current.comments, { id: crypto.randomUUID(), user: profile.displayName || 'Jij', text: comment }],
+        },
+      }
+    })
+
+    setCommentDrafts((prev) => ({ ...prev, [itemId]: '' }))
   }
 
   return (
@@ -93,6 +156,53 @@ export default function FeedTab({ checkIns, profile }) {
             )}
             <div className="p-4 pt-3">
               <p className="text-sm leading-relaxed text-zinc-200">{item.note}</p>
+              {item.isFriendPost && item.id && (
+                <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-zinc-950/40 p-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleLike(item.id)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                        getInteraction(item.id).likedByMe
+                          ? 'border-rose-300/60 bg-rose-500/20 text-rose-200'
+                          : 'border-white/15 bg-zinc-900/80 text-zinc-300 hover:border-white/30'
+                      }`}
+                    >
+                      <span aria-hidden="true">{getInteraction(item.id).likedByMe ? '❤️' : '🤍'}</span>
+                      {getInteraction(item.id).likeCount}
+                    </button>
+                    <span className="text-xs text-zinc-500">
+                      {getInteraction(item.id).comments.length} reacties
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {getInteraction(item.id).comments.map((comment) => (
+                      <p key={comment.id} className="text-xs text-zinc-300">
+                        <span className="font-semibold text-white">{comment.user}:</span> {comment.text}
+                      </p>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={commentDrafts[item.id] ?? ''}
+                      onChange={(event) =>
+                        setCommentDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))
+                      }
+                      placeholder="Plaats een reactie..."
+                      className="w-full rounded-xl border border-white/10 bg-zinc-900/80 px-3 py-2 text-xs text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addComment(item.id)}
+                      className="rounded-xl border border-sky-400/35 bg-sky-500/20 px-3 py-2 text-xs font-semibold text-sky-200 hover:border-sky-300/60"
+                    >
+                      Plaats
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </article>
         ))}

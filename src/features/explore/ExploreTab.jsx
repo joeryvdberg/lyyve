@@ -71,6 +71,87 @@ function getName(value) {
   return typeof value === 'string' ? value : value?.name ?? ''
 }
 
+const UPCOMING_EVENTS = [
+  { id: 'evt-1', name: 'DGTL Festival', city: 'Amsterdam', date: '2026-05-02', type: 'Festival' },
+  { id: 'evt-2', name: 'Lente Kabinet', city: 'Amsterdam', date: '2026-05-30', type: 'Festival' },
+  { id: 'evt-3', name: 'Down The Rabbit Hole', city: 'Beuningen', date: '2026-07-03', type: 'Festival' },
+  { id: 'evt-4', name: 'Awakenings Summer Festival', city: 'Hilvarenbeek', date: '2026-07-10', type: 'Festival' },
+  { id: 'evt-5', name: 'Roadburn', city: 'Tilburg', date: '2026-04-16', type: 'Festival' },
+  { id: 'evt-6', name: 'Rotterdam Rave Weekender', city: 'Rotterdam', date: '2026-06-12', type: 'Event' },
+  { id: 'evt-7', name: 'Paradiso Weekend Specials', city: 'Amsterdam', date: '2026-05-09', type: 'Venue event' },
+  { id: 'evt-8', name: 'TivoliVredenburg Electronic Night', city: 'Utrecht', date: '2026-05-15', type: 'Venue event' },
+]
+
+const CITY_NEIGHBORS = {
+  amsterdam: ['amsterdam', 'utrecht', 'haarlem', 'zaandam', 'rotterdam'],
+  rotterdam: ['rotterdam', 'den haag', 'delft', 'amsterdam', 'utrecht'],
+  utrecht: ['utrecht', 'amsterdam', 'amersfoort', 'rotterdam'],
+  eindhoven: ['eindhoven', 'tilburg', 'den bosch', 'breda'],
+}
+
+function buildLiveEventsQuery(cities = []) {
+  const cityFilters = cities
+    .map((city) => city.replace(/"/g, '\\"'))
+    .map(
+      (city) =>
+        `CONTAINS(LCASE(STR(?placeLabel)), LCASE("${city}")) || CONTAINS(LCASE(STR(?eventLabel)), LCASE("${city}"))`
+    )
+    .join(' || ')
+
+  return `
+SELECT ?event ?eventLabel ?start ?placeLabel WHERE {
+  VALUES ?eventClass { wd:Q132241 wd:Q182832 wd:Q41253 wd:Q2088357 }
+  ?event wdt:P31/wdt:P279* ?eventClass .
+  ?event wdt:P580 ?start .
+  FILTER(?start >= NOW())
+  OPTIONAL { ?event wdt:P276 ?place . }
+  OPTIONAL { ?event wdt:P131 ?adminArea . }
+  OPTIONAL {
+    ?place rdfs:label ?placeLabel .
+    FILTER(LANG(?placeLabel) IN ("en", "nl"))
+  }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "nl,en". }
+  FILTER(${cityFilters || 'true'})
+}
+ORDER BY ASC(?start)
+LIMIT 30
+`
+}
+
+async function fetchNearbyLiveEvents(cities = []) {
+  const query = buildLiveEventsQuery(cities)
+  const endpoint = `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(query)}`
+  const response = await fetch(endpoint, {
+    headers: {
+      Accept: 'application/sparql-results+json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('events unavailable')
+  }
+
+  const data = await response.json()
+  const rows = data?.results?.bindings ?? []
+
+  const normalized = rows
+    .map((row) => ({
+      id: row.event?.value || crypto.randomUUID(),
+      name: row.eventLabel?.value || 'Onbekend event',
+      city: row.placeLabel?.value || 'Locatie volgt',
+      date: row.start?.value || '',
+      type: 'Live event',
+    }))
+    .filter((row) => row.date)
+
+  const unique = new Map()
+  for (const row of normalized) {
+    const key = `${normalizeText(row.name)}-${row.date.slice(0, 10)}`
+    if (!unique.has(key)) unique.set(key, row)
+  }
+  return [...unique.values()].slice(0, 8)
+}
+
 function mergeByName(primary, secondary) {
   const map = new Map()
   for (const item of [...primary, ...secondary]) {
@@ -89,7 +170,7 @@ function mergeByName(primary, secondary) {
   return [...map.values()]
 }
 
-export default function ExploreTab({ checkIns }) {
+export default function ExploreTab({ checkIns, profile }) {
   const datasetBase = import.meta.env.BASE_URL
   const [mode, setMode] = useState('artist')
   const [query, setQuery] = useState('')
@@ -98,6 +179,9 @@ export default function ExploreTab({ checkIns }) {
   const [selectedName, setSelectedName] = useState('')
   const [fallbackSummary, setFallbackSummary] = useState('')
   const [summaryLoading, setSummaryLoading] = useState(false)
+  const [liveEvents, setLiveEvents] = useState([])
+  const [liveEventsLoading, setLiveEventsLoading] = useState(false)
+  const [liveEventsError, setLiveEventsError] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -241,6 +325,51 @@ export default function ExploreTab({ checkIns }) {
     fallbackSummary ||
     'Nog geen korte info gevonden. Voeg later een eigen beschrijving toe in je database.'
 
+  const nearbyUpcoming = useMemo(() => {
+    const cityKey = normalizeText(profile?.city || '')
+    const targetCities = new Set(CITY_NEIGHBORS[cityKey] ?? [cityKey || 'amsterdam'])
+    const source = liveEvents.length > 0 ? liveEvents : UPCOMING_EVENTS
+    return source
+      .filter((event) => targetCities.has(normalizeText(event.city)))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 5)
+  }, [liveEvents, profile?.city])
+
+  const locationLabel = profile?.city?.trim() || 'jouw regio'
+
+  useEffect(() => {
+    let mounted = true
+    const cityKey = normalizeText(profile?.city || '')
+    const targetCities = CITY_NEIGHBORS[cityKey] ?? [cityKey || 'amsterdam']
+
+    async function loadLiveEvents() {
+      try {
+        if (mounted) {
+          setLiveEventsLoading(true)
+          setLiveEventsError('')
+        }
+        const events = await fetchNearbyLiveEvents(targetCities)
+        if (mounted) {
+          setLiveEvents(events)
+        }
+      } catch {
+        if (mounted) {
+          setLiveEvents([])
+          setLiveEventsError('Live events tijdelijk niet beschikbaar, fallback actief.')
+        }
+      } finally {
+        if (mounted) {
+          setLiveEventsLoading(false)
+        }
+      }
+    }
+
+    loadLiveEvents()
+    return () => {
+      mounted = false
+    }
+  }, [profile?.city])
+
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold text-white">
@@ -335,6 +464,38 @@ export default function ExploreTab({ checkIns }) {
           </p>
         </article>
       )}
+
+      <article className="rounded-3xl border border-emerald-300/20 bg-zinc-900/65 p-4 shadow-xl shadow-emerald-500/10 backdrop-blur-xl">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-lg font-semibold text-white">
+            Binnenkort in de buurt<span className="text-emerald-300">.</span>
+          </h3>
+          <span className="rounded-full border border-white/10 bg-zinc-950/70 px-2 py-1 text-[11px] uppercase tracking-wide text-zinc-400">
+            {locationLabel}
+          </span>
+        </div>
+        {liveEventsLoading && <p className="mb-3 text-xs text-zinc-400">Live data laden...</p>}
+        {!liveEventsLoading && liveEventsError && <p className="mb-3 text-xs text-amber-300">{liveEventsError}</p>}
+        <div className="space-y-2">
+          {nearbyUpcoming.map((event) => (
+            <div key={event.id} className="rounded-2xl border border-white/10 bg-zinc-950/60 p-3">
+              <p className="text-sm font-semibold text-white">{event.name}</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                {new Date(event.date).toLocaleDateString('nl-NL', {
+                  day: 'numeric',
+                  month: 'long',
+                })}{' '}
+                · {event.city} · {event.type}
+              </p>
+            </div>
+          ))}
+          {nearbyUpcoming.length === 0 && (
+            <p className="text-xs text-zinc-500">
+              Nog geen events gevonden voor deze regio. Voeg je stad toe in je profiel voor betere suggesties.
+            </p>
+          )}
+        </div>
+      </article>
     </section>
   )
 }
