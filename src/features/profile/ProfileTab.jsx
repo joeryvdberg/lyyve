@@ -10,16 +10,30 @@ function avatarInitials(displayName = '') {
   return initials.join('')
 }
 
-export default function ProfileTab({ profile, onSaveProfile }) {
+export default function ProfileTab({ profile, onSaveProfile, friends = [] }) {
   const [form, setForm] = useState(profile)
   const [saveState, setSaveState] = useState('idle')
   const [isEditing, setIsEditing] = useState(false)
+  const [selectedFriendId, setSelectedFriendId] = useState('')
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(profile)
   }, [form, profile])
 
   const initials = avatarInitials(form.displayName)
+  const selectedFriend = friends.find((friend) => friend.id === selectedFriendId) ?? null
+
+  const friendStats = useMemo(() => {
+    if (!selectedFriend) return null
+    const checkIns = selectedFriend.checkIns ?? []
+    const uniqueArtists = new Set(checkIns.map((item) => item.artist.toLowerCase())).size
+    const uniquePlaces = new Set(checkIns.map((item) => item.venue.toLowerCase())).size
+    const average =
+      checkIns.length > 0
+        ? (checkIns.reduce((sum, item) => sum + item.rating, 0) / checkIns.length).toFixed(1)
+        : '0.0'
+    return { total: checkIns.length, uniqueArtists, uniquePlaces, average }
+  }, [selectedFriend])
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }))
@@ -77,6 +91,89 @@ export default function ProfileTab({ profile, onSaveProfile }) {
           {isEditing ? 'Bewerkmenu sluiten' : 'Profiel bewerken'}
         </button>
       </article>
+
+      <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-white">Vrienden</h3>
+          <span className="text-xs text-zinc-400">{friends.length} totaal</span>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {friends.map((friend) => {
+            const active = friend.id === selectedFriendId
+            return (
+              <button
+                key={friend.id}
+                type="button"
+                onClick={() => setSelectedFriendId(friend.id)}
+                className={`shrink-0 rounded-xl border px-3 py-2 text-left transition ${
+                  active
+                    ? 'border-sky-300/60 bg-sky-500/15 text-white'
+                    : 'border-white/10 bg-zinc-950/60 text-zinc-200 hover:border-white/25'
+                }`}
+              >
+                <p className="text-sm font-semibold">{friend.displayName}</p>
+                <p className="text-xs text-zinc-400">@{friend.username}</p>
+              </button>
+            )
+          })}
+        </div>
+      </article>
+
+      {selectedFriend && friendStats && (
+        <article className="space-y-3 rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-white">{selectedFriend.displayName}</h3>
+              <p className="text-xs text-zinc-400">@{selectedFriend.username}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedFriendId('')}
+              className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
+            >
+              Sluiten
+            </button>
+          </div>
+
+          <p className="text-sm text-zinc-300">{selectedFriend.bio}</p>
+          <div className="grid grid-cols-4 gap-2">
+            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+              <p className="text-sm font-semibold text-white">{friendStats.total}</p>
+              <p className="text-[11px] text-zinc-400">Check-ins</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+              <p className="text-sm font-semibold text-white">{friendStats.uniqueArtists}</p>
+              <p className="text-[11px] text-zinc-400">Artiesten</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+              <p className="text-sm font-semibold text-white">{friendStats.uniquePlaces}</p>
+              <p className="text-[11px] text-zinc-400">Plekken</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+              <p className="text-sm font-semibold text-rose-300">{friendStats.average}</p>
+              <p className="text-[11px] text-zinc-400">Gemiddeld</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-zinc-200">Timeline</p>
+            {(selectedFriend.checkIns ?? []).map((item) => (
+              <div key={item.id} className="rounded-xl border border-white/10 bg-zinc-950/60 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-white">{item.artist}</p>
+                    <p className="text-xs text-zinc-400">{item.venue}</p>
+                  </div>
+                  <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-300">
+                    {item.rating.toFixed(1)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-zinc-300">{item.note}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+      )}
 
       {isEditing && (
         <article className="rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">

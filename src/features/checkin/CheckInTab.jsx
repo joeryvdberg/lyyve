@@ -156,6 +156,7 @@ function rankSuggestions(pool, query, mainstreamSet) {
 }
 
 export default function CheckInTab({ onAddCheckIn }) {
+  const datasetBase = import.meta.env.BASE_URL
   const [rating, setRating] = useState(8.0)
   const [artistQuery, setArtistQuery] = useState('')
   const [venue, setVenue] = useState('')
@@ -171,7 +172,7 @@ export default function CheckInTab({ onAddCheckIn }) {
     async function loadArtists() {
       try {
         const [response, communityArtists] = await Promise.all([
-          fetch('/artists.json'),
+          fetch(`${datasetBase}artists.json`),
           getCatalogEntries('artist'),
         ])
         if (!response.ok) return
@@ -188,7 +189,7 @@ export default function CheckInTab({ onAddCheckIn }) {
     async function loadVenues() {
       try {
         const [response, communityPlaces] = await Promise.all([
-          fetch('/venues.json'),
+          fetch(`${datasetBase}venues.json`),
           getCatalogEntries('place'),
         ])
         if (!response.ok) return
@@ -207,7 +208,7 @@ export default function CheckInTab({ onAddCheckIn }) {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [datasetBase])
 
   const artistSuggestions = useMemo(() => {
     const query = normalizeText(artistQuery)

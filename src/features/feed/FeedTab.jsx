@@ -33,11 +33,6 @@ export default function FeedTab({ checkIns, profile }) {
 
   const feedItems = [...myFeedItems, ...friendFeedItems]
 
-  function getDisplayImage(item) {
-    if (item.photoDataUrl) return item.photoDataUrl
-    return `https://picsum.photos/seed/${encodeURIComponent(item.artist)}-${encodeURIComponent(item.event)}/1600/900`
-  }
-
   function formatTime(value) {
     if (!value) return 'Net toegevoegd'
     const date = new Date(value)
@@ -86,14 +81,16 @@ export default function FeedTab({ checkIns, profile }) {
                 </div>
               </div>
             </div>
-            <div className="overflow-hidden border-y border-white/10 bg-zinc-950/30">
-              <img
-                src={getDisplayImage(item)}
-                alt={`${item.artist} check-in`}
-                className="h-48 w-full object-cover"
-                loading="lazy"
-              />
-            </div>
+            {item.photoDataUrl && (
+              <div className="overflow-hidden border-y border-white/10 bg-zinc-950/30">
+                <img
+                  src={item.photoDataUrl}
+                  alt={`${item.artist} check-in`}
+                  className="h-48 w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            )}
             <div className="p-4 pt-3">
               <p className="text-sm leading-relaxed text-zinc-200">{item.note}</p>
             </div>

@@ -90,6 +90,7 @@ function mergeByName(primary, secondary) {
 }
 
 export default function ExploreTab({ checkIns }) {
+  const datasetBase = import.meta.env.BASE_URL
   const [mode, setMode] = useState('artist')
   const [query, setQuery] = useState('')
   const [artists, setArtists] = useState([])
@@ -104,8 +105,8 @@ export default function ExploreTab({ checkIns }) {
     async function loadData() {
       try {
         const [artistsRes, venuesRes, communityArtists, communityPlaces] = await Promise.all([
-          fetch('/artists.json'),
-          fetch('/venues.json'),
+          fetch(`${datasetBase}artists.json`),
+          fetch(`${datasetBase}venues.json`),
           getCatalogEntries('artist'),
           getCatalogEntries('place'),
         ])
@@ -132,7 +133,7 @@ export default function ExploreTab({ checkIns }) {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [datasetBase])
 
   const pool = mode === 'artist' ? artists : venues
 

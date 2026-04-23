@@ -7,6 +7,8 @@ import ProfileTab from './features/profile/ProfileTab'
 import StatsTab from './features/stats/StatsTab'
 import { getAllCheckIns, getProfile, saveCatalogEntry, saveCheckIn, saveProfile } from './lib/db'
 
+const ASSET_BASE = import.meta.env.BASE_URL
+
 const seededCheckIns = [
   {
     id: 'seed-1',
@@ -23,6 +25,61 @@ const seededCheckIns = [
     note: 'Visueel heel sterk, bass mocht wat harder.',
     rating: 7.9,
     createdAt: new Date('2026-08-16T20:45:00Z').toISOString(),
+  },
+]
+
+const friendProfiles = [
+  {
+    id: 'friend-noa',
+    username: 'noalive',
+    displayName: 'Noa',
+    bio: 'Altijd vooraan bij elektronische live-shows.',
+    avatarUrl: '',
+    city: 'Utrecht',
+    checkIns: [
+      {
+        id: 'friend-noa-1',
+        artist: 'Fred again..',
+        venue: 'Lowlands 2026',
+        rating: 8.9,
+        note: 'Bizar goeie energie. Hele tent ging los.',
+        createdAt: '2026-08-20T19:10:00Z',
+      },
+      {
+        id: 'friend-noa-2',
+        artist: 'BICEP',
+        venue: 'Awakenings Festival',
+        rating: 9.1,
+        note: 'Visueel en sonisch echt top.',
+        createdAt: '2026-07-13T21:35:00Z',
+      },
+    ],
+  },
+  {
+    id: 'friend-jesse',
+    username: 'jessebeats',
+    displayName: 'Jesse',
+    bio: 'Melodic techno en indie electronica.',
+    avatarUrl: '',
+    city: 'Amsterdam',
+    checkIns: [
+      {
+        id: 'friend-jesse-1',
+        artist: 'The Blaze',
+        venue: 'Pukkelpop 2026',
+        rating: 8.2,
+        note: 'Visueel heel sterk, sound iets te zacht.',
+        createdAt: '2026-08-16T20:45:00Z',
+      },
+      {
+        id: 'friend-jesse-2',
+        artist: 'Maribou State',
+        venue: 'Paradiso',
+        rating: 8.7,
+        note: 'Mooie opbouw en fijne sfeer in de zaal.',
+        createdAt: '2026-06-09T22:05:00Z',
+      },
+    ],
   },
 ]
 
@@ -136,6 +193,7 @@ function App() {
           key={`profile-${profile.id}-${profile.updatedAt ?? 'init'}`}
           profile={profile}
           onSaveProfile={handleSaveProfile}
+          friends={friendProfiles}
         />
       )
     }
@@ -153,9 +211,9 @@ function App() {
         <header className="-mb-3 flex items-start justify-between">
           <div className="h-11 w-11" />
           <img
-            src="/lyyve-logo.png"
+            src={`${ASSET_BASE}lyyve-logo.png`}
             alt="Lyyve logo"
-            className="mx-auto h-auto w-44 mix-blend-screen drop-shadow-[0_0_28px_rgba(56,189,248,0.35)]"
+            className="mx-auto h-auto w-44 drop-shadow-[0_0_28px_rgba(56,189,248,0.35)]"
           />
           <button
             type="button"
