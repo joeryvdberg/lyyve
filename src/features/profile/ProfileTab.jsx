@@ -15,6 +15,7 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [] }) {
   const [saveState, setSaveState] = useState('idle')
   const [isEditing, setIsEditing] = useState(false)
   const [selectedFriendId, setSelectedFriendId] = useState('')
+  const [relationView, setRelationView] = useState('')
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(profile)
@@ -22,6 +23,8 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [] }) {
 
   const initials = avatarInitials(form.displayName)
   const selectedFriend = friends.find((friend) => friend.id === selectedFriendId) ?? null
+  const followers = friends
+  const following = friends
 
   const friendStats = useMemo(() => {
     if (!selectedFriend) return null
@@ -93,9 +96,23 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [] }) {
       </article>
 
       <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-white">Vrienden</h3>
-          <span className="text-xs text-zinc-400">{friends.length} totaal</span>
+        <div className="mb-3 flex items-center gap-6">
+          <button
+            type="button"
+            onClick={() => setRelationView('followers')}
+            className="text-left"
+          >
+            <p className="text-lg font-semibold text-white">{followers.length}</p>
+            <p className="text-xs text-zinc-400">Volgers</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setRelationView('following')}
+            className="text-left"
+          >
+            <p className="text-lg font-semibold text-white">{following.length}</p>
+            <p className="text-xs text-zinc-400">Volgend</p>
+          </button>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {friends.map((friend) => {
@@ -118,6 +135,42 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [] }) {
           })}
         </div>
       </article>
+
+      {relationView && (
+        <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white">
+              {relationView === 'followers' ? 'Volgers' : 'Volgend'}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setRelationView('')}
+              className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
+            >
+              Sluiten
+            </button>
+          </div>
+          <div className="space-y-2">
+            {(relationView === 'followers' ? followers : following).map((person) => (
+              <button
+                key={`${relationView}-${person.id}`}
+                type="button"
+                onClick={() => {
+                  setSelectedFriendId(person.id)
+                  setRelationView('')
+                }}
+                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-left hover:border-white/20"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-white">{person.displayName}</p>
+                  <p className="text-xs text-zinc-400">@{person.username}</p>
+                </div>
+                <span className="text-xs text-zinc-500">{person.city}</span>
+              </button>
+            ))}
+          </div>
+        </article>
+      )}
 
       {selectedFriend && friendStats && (
         <article className="space-y-3 rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
