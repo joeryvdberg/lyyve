@@ -9,3 +9,51 @@ body {
 #root {
   min-height: 100svh;
 }
+
+@keyframes splashLogoReveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.82) translateY(12px);
+    filter: blur(8px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.03) translateY(0);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes splashGlow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0.1));
+  }
+  50% {
+    filter: drop-shadow(0 0 22px rgba(34, 211, 238, 0.3));
+  }
+}
+
+@keyframes splashGridMove {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(24px);
+  }
+}
+
+.splash-logo {
+  animation: splashLogoReveal 900ms ease-out forwards, splashGlow 1700ms ease-in-out infinite;
+}
+
+.splash-grid {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 22px 22px;
+  animation: splashGridMove 1500ms linear infinite alternate;
+}

@@ -112,6 +112,9 @@ function App() {
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
   const [profile, setProfile] = useState(defaultProfile)
   const [badges, setBadges] = useState([])
+  const [checkInsLoaded, setCheckInsLoaded] = useState(false)
+  const [profileLoaded, setProfileLoaded] = useState(false)
+  const [splashMinElapsed, setSplashMinElapsed] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -126,6 +129,7 @@ function App() {
       } else {
         setMyCheckIns(items)
       }
+      if (mounted) setCheckInsLoaded(true)
     }
 
     loadCheckIns()
@@ -161,12 +165,18 @@ function App() {
         setProfile(defaultProfile)
         await saveProfile(defaultProfile)
       }
+      if (mounted) setProfileLoaded(true)
     }
 
     loadProfile()
     return () => {
       mounted = false
     }
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSplashMinElapsed(true), 1700)
+    return () => window.clearTimeout(timer)
   }, [])
 
   const handleAddCheckIn = async (checkIn) => {
@@ -220,9 +230,23 @@ function App() {
   }, [activeTab, badges, myCheckIns, profile])
 
   const profileInitials = avatarInitials(profile.displayName)
+  const showSplash = !(checkInsLoaded && profileLoaded && splashMinElapsed)
 
   return (
     <div className="min-h-svh bg-zinc-950 text-zinc-100">
+      {showSplash && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,#fb718533,transparent_40%),radial-gradient(circle_at_70%_20%,#8b5cf644,transparent_42%),#05020f]">
+          <div className="pointer-events-none absolute inset-0 splash-grid opacity-50" />
+          <div className="relative flex flex-col items-center gap-4">
+            <img
+              src={`${ASSET_BASE}lyyve-logo-white-blue.png`}
+              alt="Lyyve"
+              className="w-64 max-w-[75vw] splash-logo"
+            />
+            <p className="text-xs uppercase tracking-[0.25em] text-zinc-300">Loading your next live moment</p>
+          </div>
+        </div>
+      )}
       <div className="pointer-events-none fixed inset-0 -z-0 bg-[radial-gradient(circle_at_top,#fb718544,transparent_38%),radial-gradient(circle_at_75%_20%,#8b5cf655,transparent_42%),radial-gradient(circle_at_20%_80%,#22d3ee33,transparent_38%)]" />
       <div className="pointer-events-none fixed inset-0 -z-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.02),transparent_30%,rgba(255,255,255,0.03),transparent_70%)]" />
       <main className="mx-auto w-full max-w-md px-4 pb-28 pt-6">
