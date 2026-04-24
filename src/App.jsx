@@ -115,6 +115,8 @@ function App() {
   const [checkInsLoaded, setCheckInsLoaded] = useState(false)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [splashMinElapsed, setSplashMinElapsed] = useState(false)
+  const [splashHiding, setSplashHiding] = useState(false)
+  const [splashGone, setSplashGone] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -179,6 +181,18 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [])
 
+  useEffect(() => {
+    if (!checkInsLoaded || !profileLoaded || !splashMinElapsed || splashGone) return
+
+    const hideTimer = window.setTimeout(() => setSplashHiding(true), 0)
+    const removeTimer = window.setTimeout(() => setSplashGone(true), 560)
+
+    return () => {
+      window.clearTimeout(hideTimer)
+      window.clearTimeout(removeTimer)
+    }
+  }, [checkInsLoaded, profileLoaded, splashGone, splashMinElapsed])
+
   const handleAddCheckIn = async (checkIn) => {
     const newCheckIn = {
       ...checkIn,
@@ -230,23 +244,14 @@ function App() {
   }, [activeTab, badges, myCheckIns, profile])
 
   const profileInitials = avatarInitials(profile.displayName)
-  const showSplash = !(checkInsLoaded && profileLoaded && splashMinElapsed)
+  const showSplash = !splashGone
 
   return (
-    <div className="min-h-svh bg-zinc-950 text-zinc-100">
-      {showSplash && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,#fb718533,transparent_40%),radial-gradient(circle_at_70%_20%,#8b5cf644,transparent_42%),#05020f]">
-          <div className="pointer-events-none absolute inset-0 splash-grid opacity-50" />
-          <div className="relative flex flex-col items-center gap-4">
-            <img
-              src={`${ASSET_BASE}lyyve-logo-white-blue.png`}
-              alt="Lyyve"
-              className="w-64 max-w-[75vw] splash-logo"
-            />
-            <p className="text-xs uppercase tracking-[0.25em] text-zinc-300">Loading your next live moment</p>
-          </div>
-        </div>
-      )}
+    <div
+      className={`min-h-svh bg-zinc-950 text-zinc-100 transition-opacity duration-500 ${
+        showSplash && !splashHiding ? 'opacity-0' : 'opacity-100'
+      }`}
+    >
       <div className="pointer-events-none fixed inset-0 -z-0 bg-[radial-gradient(circle_at_top,#fb718544,transparent_38%),radial-gradient(circle_at_75%_20%,#8b5cf655,transparent_42%),radial-gradient(circle_at_20%_80%,#22d3ee33,transparent_38%)]" />
       <div className="pointer-events-none fixed inset-0 -z-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.02),transparent_30%,rgba(255,255,255,0.03),transparent_70%)]" />
       <main className="mx-auto w-full max-w-md px-4 pb-28 pt-6">
@@ -273,6 +278,30 @@ function App() {
         {activeView}
       </main>
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
+      {showSplash && (
+        <div
+          className={`fixed inset-0 z-50 overflow-hidden bg-[#05020f] text-zinc-100 transition-opacity duration-500 ${
+            splashHiding ? 'pointer-events-none opacity-0' : 'opacity-100'
+          }`}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,#fb718544,transparent_42%),radial-gradient(circle_at_70%_20%,#8b5cf666,transparent_48%),radial-gradient(circle_at_20%_80%,#22d3ee33,transparent_44%)]" />
+          <div className="pointer-events-none absolute inset-0 splash-grid opacity-55" />
+          <div
+            className={`relative z-10 flex min-h-svh flex-col items-center justify-center gap-5 px-6 text-center ${
+              splashHiding ? 'splash-outro' : ''
+            }`}
+          >
+            <img
+              src={`${ASSET_BASE}lyyve-logo.png`}
+              alt="Lyyve"
+              className="w-72 max-w-[82vw] splash-logo splash-outro-logo"
+            />
+            <p className="splash-tagline text-xs uppercase tracking-[0.22em] text-zinc-300">
+              Be there. See it Lyyve.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
