@@ -31,6 +31,8 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          VITE_BANDSINTOWN_APP_ID: ${{ secrets.VITE_BANDSINTOWN_APP_ID }}
         run: npm run build
 
       - name: Upload Pages Artifact
