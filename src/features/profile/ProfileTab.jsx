@@ -10,7 +10,7 @@ function avatarInitials(displayName = '') {
   return initials.join('')
 }
 
-export default function ProfileTab({ profile, onSaveProfile, friends = [], checkIns = [] }) {
+export default function ProfileTab({ profile, onSaveProfile, friends = [], checkIns = [], badges = [] }) {
   const [form, setForm] = useState(profile)
   const [saveState, setSaveState] = useState('idle')
   const [isEditing, setIsEditing] = useState(false)
@@ -119,6 +119,33 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [], check
           </div>
         </div>
         <p className="text-xs text-zinc-500">Klik op Volgers of Volgend om de lijst te openen.</p>
+      </article>
+
+      <article className="rounded-3xl border border-cyan-300/20 bg-zinc-900/65 p-4 shadow-lg shadow-cyan-500/10 backdrop-blur-xl">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-white">Badges</h3>
+          <p className="text-xs text-zinc-400">
+            {badges.filter((badge) => badge.unlocked).length}/{badges.length}
+          </p>
+        </div>
+        <div className="space-y-2">
+          {badges.map((badge) => (
+            <div key={badge.id} className="rounded-xl border border-white/10 bg-zinc-950/60 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{badge.name}</p>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    badge.unlocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800 text-zinc-400'
+                  }`}
+                >
+                  {badge.unlocked ? 'Unlocked' : `${badge.progress}/${badge.threshold}`}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-zinc-400">{badge.description}</p>
+            </div>
+          ))}
+          {badges.length === 0 && <p className="text-xs text-zinc-500">Nog geen badges berekend.</p>}
+        </div>
       </article>
 
       {relationView && (

@@ -5,7 +5,8 @@ import ExploreTab from './features/explore/ExploreTab'
 import FeedTab from './features/feed/FeedTab'
 import ProfileTab from './features/profile/ProfileTab'
 import StatsTab from './features/stats/StatsTab'
-import { getAllCheckIns, getProfile, saveCatalogEntry, saveCheckIn, saveProfile } from './lib/db'
+import { evaluateBadges } from './lib/badges'
+import { getAllCheckIns, getBadges, getProfile, saveBadges, saveCatalogEntry, saveCheckIn, saveProfile } from './lib/db'
 
 const ASSET_BASE = import.meta.env.BASE_URL
 
@@ -110,6 +111,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('feed')
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
   const [profile, setProfile] = useState(defaultProfile)
+  const [badges, setBadges] = useState([])
 
   useEffect(() => {
     let mounted = true
@@ -131,6 +133,20 @@ function App() {
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    let mounted = true
+    async function syncBadges() {
+      const storedBadges = await getBadges()
+      const evaluated = evaluateBadges(myCheckIns, storedBadges)
+      await saveBadges(evaluated)
+      if (mounted) setBadges(evaluated)
+    }
+    syncBadges()
+    return () => {
+      mounted = false
+    }
+  }, [myCheckIns])
 
   useEffect(() => {
     let mounted = true
@@ -195,12 +211,13 @@ function App() {
           onSaveProfile={handleSaveProfile}
           friends={friendProfiles}
           checkIns={myCheckIns}
+          badges={badges}
         />
       )
     }
 
     return <FeedTab checkIns={myCheckIns} profile={profile} />
-  }, [activeTab, myCheckIns, profile])
+  }, [activeTab, badges, myCheckIns, profile])
 
   const profileInitials = avatarInitials(profile.displayName)
 

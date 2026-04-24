@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getCatalogEntries } from '../../lib/db'
+import { getCatalogEntries, getEventCache, saveEventCache } from '../../lib/db'
 
 const MAINSTREAM_ARTISTS = new Set(
   [
@@ -71,6 +71,15 @@ function getName(value) {
   return typeof value === 'string' ? value : value?.name ?? ''
 }
 
+function dedupeEventsById(events = []) {
+  const map = new Map()
+  for (const event of events) {
+    const key = event.id || `${normalizeText(event.name)}-${event.date}`
+    if (!map.has(key)) map.set(key, event)
+  }
+  return [...map.values()]
+}
+
 const UPCOMING_EVENTS = [
   { id: 'evt-1', name: 'DGTL Festival', city: 'Amsterdam', date: '2026-05-02', type: 'Festival' },
   { id: 'evt-2', name: 'Lente Kabinet', city: 'Amsterdam', date: '2026-05-30', type: 'Festival' },
@@ -89,67 +98,46 @@ const CITY_NEIGHBORS = {
   eindhoven: ['eindhoven', 'tilburg', 'den bosch', 'breda'],
 }
 
-function buildLiveEventsQuery(cities = []) {
-  const cityFilters = cities
-    .map((city) => city.replace(/"/g, '\\"'))
-    .map(
-      (city) =>
-        `CONTAINS(LCASE(STR(?placeLabel)), LCASE("${city}")) || CONTAINS(LCASE(STR(?eventLabel)), LCASE("${city}"))`
-    )
-    .join(' || ')
-
-  return `
-SELECT ?event ?eventLabel ?start ?placeLabel WHERE {
-  VALUES ?eventClass { wd:Q132241 wd:Q182832 wd:Q41253 wd:Q2088357 }
-  ?event wdt:P31/wdt:P279* ?eventClass .
-  ?event wdt:P580 ?start .
-  FILTER(?start >= NOW())
-  OPTIONAL { ?event wdt:P276 ?place . }
-  OPTIONAL { ?event wdt:P131 ?adminArea . }
-  OPTIONAL {
-    ?place rdfs:label ?placeLabel .
-    FILTER(LANG(?placeLabel) IN ("en", "nl"))
-  }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "nl,en". }
-  FILTER(${cityFilters || 'true'})
-}
-ORDER BY ASC(?start)
-LIMIT 30
-`
-}
-
-async function fetchNearbyLiveEvents(cities = []) {
-  const query = buildLiveEventsQuery(cities)
-  const endpoint = `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(query)}`
-  const response = await fetch(endpoint, {
-    headers: {
-      Accept: 'application/sparql-results+json',
-    },
-  })
-
+async function fetchBandsintownArtistEvents(artistName, appId) {
+  const url = `https://rest.bandsintown.com/artists/${encodeURIComponent(
+    artistName
+  )}/events?app_id=${encodeURIComponent(appId)}&date=upcoming`
+  const response = await fetch(url)
   if (!response.ok) {
-    throw new Error('events unavailable')
+    throw new Error(`bandsintown ${response.status}`)
   }
+  const rows = await response.json()
+  if (!Array.isArray(rows)) return []
+  return rows.map((item) => ({
+    id: String(item.id ?? `${artistName}-${item.datetime}`),
+    name: item.title || item?.venue?.name || artistName,
+    artist: artistName,
+    venue: item?.venue?.name || 'Venue volgt',
+    city: item?.venue?.city || '',
+    country: item?.venue?.country || '',
+    date: item.datetime || '',
+    url: item.url || '',
+    source: 'bandsintown',
+    type: 'Live event',
+  }))
+}
 
-  const data = await response.json()
-  const rows = data?.results?.bindings ?? []
+async function fetchBandsintownNearbyEvents({ appId, artists, cityKey, targetCities }) {
+  const cached = await getEventCache(cityKey, 1000 * 60 * 45)
+  if (cached?.length) return cached
 
-  const normalized = rows
-    .map((row) => ({
-      id: row.event?.value || crypto.randomUUID(),
-      name: row.eventLabel?.value || 'Onbekend event',
-      city: row.placeLabel?.value || 'Locatie volgt',
-      date: row.start?.value || '',
-      type: 'Live event',
-    }))
-    .filter((row) => row.date)
+  const artistSlice = artists.slice(0, 8)
+  const responses = await Promise.all(
+    artistSlice.map((artist) => fetchBandsintownArtistEvents(artist, appId).catch(() => []))
+  )
+  const citySet = new Set(targetCities.map(normalizeText))
+  const merged = dedupeEventsById(responses.flat())
+    .filter((event) => citySet.has(normalizeText(event.city)))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 20)
 
-  const unique = new Map()
-  for (const row of normalized) {
-    const key = `${normalizeText(row.name)}-${row.date.slice(0, 10)}`
-    if (!unique.has(key)) unique.set(key, row)
-  }
-  return [...unique.values()].slice(0, 8)
+  await saveEventCache(cityKey, merged, 'bandsintown')
+  return merged
 }
 
 function mergeByName(primary, secondary) {
@@ -348,14 +336,33 @@ export default function ExploreTab({ checkIns, profile }) {
           setLiveEventsLoading(true)
           setLiveEventsError('')
         }
-        const events = await fetchNearbyLiveEvents(targetCities)
+
+        const appId = import.meta.env.VITE_BANDSINTOWN_APP_ID
+        if (!appId) {
+          throw new Error('missing-app-id')
+        }
+
+        const favoriteArtists = String(profile?.favoriteArtists || '')
+          .split(',')
+          .map((name) => name.trim())
+          .filter(Boolean)
+        const suggestedArtists = dedupeEventsById(
+          artists.map((item) => ({ id: getName(item), name: getName(item) })).slice(0, 6)
+        ).map((item) => item.name)
+        const artistSeed = [...new Set([...favoriteArtists, ...suggestedArtists, 'Fred again..', 'BICEP'])]
+        const events = await fetchBandsintownNearbyEvents({
+          appId,
+          artists: artistSeed,
+          cityKey: cityKey || 'amsterdam',
+          targetCities,
+        })
         if (mounted) {
           setLiveEvents(events)
         }
       } catch {
         if (mounted) {
           setLiveEvents([])
-          setLiveEventsError('Live events tijdelijk niet beschikbaar, fallback actief.')
+          setLiveEventsError('Bandsintown live data niet beschikbaar, fallback actief.')
         }
       } finally {
         if (mounted) {
@@ -368,7 +375,7 @@ export default function ExploreTab({ checkIns, profile }) {
     return () => {
       mounted = false
     }
-  }, [profile?.city])
+  }, [artists, profile?.city, profile?.favoriteArtists])
 
   return (
     <section className="space-y-4">
@@ -487,6 +494,16 @@ export default function ExploreTab({ checkIns, profile }) {
                 })}{' '}
                 · {event.city} · {event.type}
               </p>
+              {event.url ? (
+                <a
+                  href={event.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex text-xs font-medium text-cyan-300 hover:text-cyan-200"
+                >
+                  Tickets / event
+                </a>
+              ) : null}
             </div>
           ))}
           {nearbyUpcoming.length === 0 && (

@@ -14,6 +14,14 @@ db.version(3).stores({
   profiles: 'id, updatedAt',
   catalogEntries: 'id, kind, name, updatedAt',
 })
+db.version(4).stores({
+  checkIns: 'id, createdAt, artist, venue, rating',
+  profiles: 'id, updatedAt',
+  catalogEntries: 'id, kind, name, updatedAt',
+  events: 'id, cityKey, updatedAt',
+  feedInteractions: 'id, updatedAt',
+  badges: 'id, unlockedAt, updatedAt',
+})
 
 export async function getAllCheckIns() {
   return db.checkIns.orderBy('createdAt').reverse().toArray()
@@ -64,5 +72,44 @@ export async function saveCatalogEntry(kind, name) {
 
 export async function getCatalogEntries(kind) {
   return db.catalogEntries.where('kind').equals(kind).toArray()
+}
+
+export async function getFeedInteractions() {
+  const rows = await db.feedInteractions.toArray()
+  return Object.fromEntries(rows.map((row) => [row.id, row]))
+}
+
+export async function saveFeedInteraction(itemId, interaction) {
+  await db.feedInteractions.put({
+    ...interaction,
+    id: itemId,
+    updatedAt: new Date().toISOString(),
+  })
+}
+
+export async function getEventCache(cityKey, maxAgeMs = 1000 * 60 * 45) {
+  const row = await db.events.get(`city:${cityKey}`)
+  if (!row) return null
+  if (Date.now() - new Date(row.updatedAt).getTime() > maxAgeMs) return null
+  return Array.isArray(row.events) ? row.events : null
+}
+
+export async function saveEventCache(cityKey, events, source = 'bandsintown') {
+  await db.events.put({
+    id: `city:${cityKey}`,
+    cityKey,
+    source,
+    events,
+    updatedAt: new Date().toISOString(),
+  })
+}
+
+export async function getBadges() {
+  return db.badges.toArray()
+}
+
+export async function saveBadges(badges = []) {
+  if (!badges.length) return
+  await db.badges.bulkPut(badges.map((badge) => ({ ...badge, updatedAt: new Date().toISOString() })))
 }
 

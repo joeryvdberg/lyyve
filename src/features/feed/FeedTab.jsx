@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useEffect } from 'react'
+import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
 
 const friendFeedItems = [
   {
@@ -29,6 +31,7 @@ export default function FeedTab({ checkIns, profile }) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
+  const [commentErrors, setCommentErrors] = useState({})
 
   const myFeedItems = checkIns.map((item) => ({
     id: item.id,
@@ -46,6 +49,18 @@ export default function FeedTab({ checkIns, profile }) {
 
   const defaultInteractions = useMemo(() => ({}), [])
 
+  useEffect(() => {
+    let mounted = true
+    async function loadInteractions() {
+      const stored = await getFeedInteractions()
+      if (mounted) setInteractions(stored)
+    }
+    loadInteractions()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   function getInteraction(itemId) {
     return interactions[itemId] ?? defaultInteractions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
   }
@@ -61,7 +76,7 @@ export default function FeedTab({ checkIns, profile }) {
     setInteractions((prev) => {
       const current = prev[itemId] ?? defaultInteractions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
       const nextLiked = !current.likedByMe
-      return {
+      const next = {
         ...prev,
         [itemId]: {
           ...current,
@@ -69,26 +84,46 @@ export default function FeedTab({ checkIns, profile }) {
           likeCount: Math.max(0, current.likeCount + (nextLiked ? 1 : -1)),
         },
       }
+      saveFeedInteraction(itemId, next[itemId])
+      return next
     })
   }
 
   function addComment(itemId) {
     const rawComment = commentDrafts[itemId] ?? ''
     const comment = rawComment.trim()
-    if (!comment) return
+    if (!comment) {
+      setCommentErrors((prev) => ({ ...prev, [itemId]: 'Reactie mag niet leeg zijn.' }))
+      return
+    }
+    if (comment.length > 220) {
+      setCommentErrors((prev) => ({ ...prev, [itemId]: 'Maximaal 220 tekens per reactie.' }))
+      return
+    }
 
     setInteractions((prev) => {
       const current = prev[itemId] ?? defaultInteractions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
-      return {
+      const next = {
         ...prev,
         [itemId]: {
           ...current,
-          comments: [...current.comments, { id: crypto.randomUUID(), user: profile.displayName || 'Jij', text: comment }],
+          comments: [
+            ...current.comments,
+            {
+              id: crypto.randomUUID(),
+              user: profile.displayName || 'Jij',
+              text: comment,
+              createdAt: new Date().toISOString(),
+            },
+          ],
         },
       }
+      saveFeedInteraction(itemId, next[itemId])
+      return next
     })
 
     setCommentDrafts((prev) => ({ ...prev, [itemId]: '' }))
+    setCommentErrors((prev) => ({ ...prev, [itemId]: '' }))
   }
 
   function toggleCommentPanel(itemId) {
@@ -199,6 +234,14 @@ export default function FeedTab({ checkIns, profile }) {
                         {getInteraction(item.id).comments.map((comment) => (
                           <p key={comment.id} className="text-xs text-zinc-300">
                             <span className="font-semibold text-white">{comment.user}:</span> {comment.text}
+                            {comment.createdAt ? (
+                              <span className="ml-2 text-zinc-500">
+                                {new Date(comment.createdAt).toLocaleDateString('nl-NL', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                })}
+                              </span>
+                            ) : null}
                           </p>
                         ))}
                       </div>
@@ -220,6 +263,7 @@ export default function FeedTab({ checkIns, profile }) {
                           Plaats
                         </button>
                       </div>
+                      {commentErrors[item.id] && <p className="text-xs text-amber-300">{commentErrors[item.id]}</p>}
                     </>
                   )}
                 </div>
