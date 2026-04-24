@@ -266,6 +266,14 @@ export default function CheckInTab({ onAddCheckIn }) {
     reader.readAsDataURL(file)
   }
 
+  const applyArtistSuggestion = (name) => {
+    setArtistQuery(name)
+  }
+
+  const applyVenueSuggestion = (name) => {
+    setVenue(name)
+  }
+
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold text-white">
@@ -278,19 +286,22 @@ export default function CheckInTab({ onAddCheckIn }) {
             <input
               value={artistQuery}
               onChange={(event) => setArtistQuery(event.target.value)}
-              list="artist-suggestions"
               className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
               placeholder="Bijv. Disclosure"
             />
-            <datalist id="artist-suggestions">
-              {artistSuggestions.map((artist) => (
-                <option key={artist} value={artist} />
-              ))}
-            </datalist>
             {artistQuery.trim() && artistSuggestions.length > 0 && (
-              <p className="mt-2 text-xs text-zinc-400">
-                Suggesties uit dataset: {artistSuggestions.join(', ')}
-              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {artistSuggestions.map((artist) => (
+                  <button
+                    key={artist}
+                    type="button"
+                    onClick={() => applyArtistSuggestion(artist)}
+                    className="rounded-full border border-white/10 bg-zinc-950 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-sky-400/70 hover:text-sky-200"
+                  >
+                    {artist}
+                  </button>
+                ))}
+              </div>
             )}
           </label>
           <label className="block text-sm text-zinc-300">
@@ -298,19 +309,22 @@ export default function CheckInTab({ onAddCheckIn }) {
             <input
               value={venue}
               onChange={(event) => setVenue(event.target.value)}
-              list="venue-suggestions"
               className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
               placeholder="Bijv. Down The Rabbit Hole"
             />
-            <datalist id="venue-suggestions">
-              {venueSuggestions.map((place) => (
-                <option key={place} value={place} />
-              ))}
-            </datalist>
             {venue.trim() && venueSuggestions.length > 0 && (
-              <p className="mt-2 text-xs text-zinc-400">
-                Suggesties venues/festivals: {venueSuggestions.join(', ')}
-              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {venueSuggestions.map((place) => (
+                  <button
+                    key={place}
+                    type="button"
+                    onClick={() => applyVenueSuggestion(place)}
+                    className="rounded-full border border-white/10 bg-zinc-950 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-sky-400/70 hover:text-sky-200"
+                  >
+                    {place}
+                  </button>
+                ))}
+              </div>
             )}
           </label>
           <label className="block text-sm text-zinc-300">
@@ -328,6 +342,7 @@ export default function CheckInTab({ onAddCheckIn }) {
             <input
               type="file"
               accept="image/*"
+              capture="environment"
               onChange={handlePhotoChange}
               className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
             />
