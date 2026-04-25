@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import BottomNav from './components/layout/BottomNav'
+import AuthScreen from './features/auth/AuthScreen'
 import CheckInTab from './features/checkin/CheckInTab'
 import ExploreTab from './features/explore/ExploreTab'
 import FeedTab from './features/feed/FeedTab'
@@ -7,6 +8,7 @@ import ProfileTab from './features/profile/ProfileTab'
 import StatsTab from './features/stats/StatsTab'
 import { evaluateBadges } from './lib/badges'
 import { getAllCheckIns, getBadges, getProfile, saveBadges, saveCatalogEntry, saveCheckIn, saveProfile } from './lib/db'
+import { hasSupabaseConfig, supabase } from './lib/supabase'
 
 const ASSET_BASE = import.meta.env.BASE_URL
 
@@ -112,6 +114,8 @@ function App() {
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
   const [profile, setProfile] = useState(defaultProfile)
   const [badges, setBadges] = useState([])
+  const [session, setSession] = useState(null)
+  const [authLoading, setAuthLoading] = useState(hasSupabaseConfig)
   const [checkInsLoaded, setCheckInsLoaded] = useState(false)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [splashMinElapsed, setSplashMinElapsed] = useState(false)
@@ -119,9 +123,55 @@ function App() {
   const [splashGone, setSplashGone] = useState(false)
 
   useEffect(() => {
+    if (!hasSupabaseConfig || !supabase) return
+
+    let mounted = true
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return
+      setSession(data.session ?? null)
+      setAuthLoading(false)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession ?? null)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
     let mounted = true
 
     async function loadCheckIns() {
+      if (hasSupabaseConfig && supabase && session?.user?.id) {
+        const { data } = await supabase
+          .from('check_ins')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+        if (!mounted) return
+        setMyCheckIns(
+          (data ?? []).map((item) => ({
+            id: item.id,
+            artist: item.artist,
+            venue: item.venue,
+            note: item.note ?? '',
+            rating: Number(item.rating ?? 0),
+            createdAt: item.created_at ?? '',
+            photoDataUrl: item.photo_url ?? '',
+            city: item.city ?? '',
+            country: item.country ?? '',
+          }))
+        )
+        if (mounted) setCheckInsLoaded(true)
+        return
+      }
+
       const items = await getAllCheckIns()
       if (!mounted) return
 
@@ -138,7 +188,7 @@ function App() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [session?.user?.email, session?.user?.id])
 
   useEffect(() => {
     let mounted = true
@@ -158,6 +208,45 @@ function App() {
     let mounted = true
 
     async function loadProfile() {
+      if (hasSupabaseConfig && supabase && session?.user?.id) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
+        if (!mounted) return
+        if (data) {
+          setProfile({
+            ...defaultProfile,
+            id: data.id,
+            username: data.username || defaultProfile.username,
+            displayName: data.display_name || defaultProfile.displayName,
+            bio: data.bio || defaultProfile.bio,
+            city: data.city || defaultProfile.city,
+            avatarUrl: data.avatar_url || '',
+            favoriteGenres: data.favorite_genres || defaultProfile.favoriteGenres,
+            favoriteArtists: data.favorite_artists || defaultProfile.favoriteArtists,
+            updatedAt: data.updated_at || '',
+          })
+        } else {
+          const fallbackName = session.user.email?.split('@')[0] || defaultProfile.username
+          const initialProfile = {
+            id: session.user.id,
+            username: fallbackName,
+            display_name: defaultProfile.displayName,
+            bio: defaultProfile.bio,
+            city: defaultProfile.city,
+            avatar_url: '',
+            favorite_genres: defaultProfile.favoriteGenres,
+            favorite_artists: defaultProfile.favoriteArtists,
+          }
+          await supabase.from('profiles').upsert(initialProfile)
+          setProfile({
+            ...defaultProfile,
+            id: session.user.id,
+            username: fallbackName,
+          })
+        }
+        if (mounted) setProfileLoaded(true)
+        return
+      }
+
       const storedProfile = await getProfile()
       if (!mounted) return
 
@@ -174,7 +263,7 @@ function App() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [session?.user?.email, session?.user?.id])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSplashMinElapsed(true), 1700)
@@ -193,26 +282,66 @@ function App() {
     }
   }, [checkInsLoaded, profileLoaded, splashGone, splashMinElapsed])
 
-  const handleAddCheckIn = async (checkIn) => {
+  const handleAddCheckIn = useCallback(async (checkIn) => {
     const newCheckIn = {
       ...checkIn,
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     }
 
+    if (hasSupabaseConfig && supabase && session?.user?.id) {
+      const { data, error } = await supabase
+        .from('check_ins')
+        .insert({
+          user_id: session.user.id,
+          artist: newCheckIn.artist,
+          venue: newCheckIn.venue,
+          note: newCheckIn.note ?? '',
+          rating: newCheckIn.rating,
+          photo_url: newCheckIn.photoDataUrl || null,
+          city: newCheckIn.city || null,
+          country: newCheckIn.country || null,
+        })
+        .select('*')
+        .single()
+
+      if (!error && data) {
+        newCheckIn.id = data.id
+      }
+    }
+
     setMyCheckIns((prev) => [newCheckIn, ...prev])
-    await saveCheckIn(newCheckIn)
+    if (hasSupabaseConfig && supabase && session?.user?.id) {
+      // Cloud is source of truth when auth is enabled.
+    } else {
+      await saveCheckIn(newCheckIn)
+    }
     await Promise.all([
       saveCatalogEntry('artist', newCheckIn.artist),
       saveCatalogEntry('place', newCheckIn.venue),
     ])
-  }
+  }, [session])
 
-  const handleSaveProfile = async (nextProfile) => {
+  const handleSaveProfile = useCallback(async (nextProfile) => {
     const mergedProfile = { ...defaultProfile, ...nextProfile, id: 'me' }
+    if (hasSupabaseConfig && supabase && session?.user?.id) {
+      await supabase.from('profiles').upsert({
+        id: session.user.id,
+        username: mergedProfile.username,
+        display_name: mergedProfile.displayName,
+        bio: mergedProfile.bio,
+        city: mergedProfile.city,
+        avatar_url: mergedProfile.avatarUrl || '',
+        favorite_genres: mergedProfile.favoriteGenres,
+        favorite_artists: mergedProfile.favoriteArtists,
+      })
+      setProfile({ ...mergedProfile, id: session.user.id })
+      return
+    }
+
     setProfile(mergedProfile)
     await saveProfile(mergedProfile)
-  }
+  }, [session])
 
   const activeView = useMemo(() => {
     if (activeTab === 'checkin') {
@@ -241,10 +370,18 @@ function App() {
     }
 
     return <FeedTab checkIns={myCheckIns} profile={profile} />
-  }, [activeTab, badges, myCheckIns, profile])
+  }, [activeTab, badges, handleAddCheckIn, handleSaveProfile, myCheckIns, profile])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
+
+  if (authLoading) {
+    return <div className="min-h-svh bg-zinc-950" />
+  }
+
+  if (hasSupabaseConfig && !session) {
+    return <AuthScreen />
+  }
 
   return (
     <div className="min-h-svh bg-zinc-950 text-zinc-100">
@@ -271,6 +408,15 @@ function App() {
             )}
           </button>
         </header>
+        {hasSupabaseConfig && session ? (
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="mb-3 rounded-lg border border-white/10 bg-zinc-900/55 px-3 py-1 text-[11px] text-zinc-300 hover:border-white/20"
+          >
+            Uitloggen
+          </button>
+        ) : null}
         {activeView}
       </main>
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />
