@@ -381,13 +381,16 @@ function App() {
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
+  const inRecoveryFlow =
+    typeof window !== 'undefined' &&
+    (window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery'))
 
   if (authLoading) {
     return <div className="min-h-svh bg-zinc-950" />
   }
 
-  if (hasSupabaseConfig && !session) {
-    return <AuthScreen />
+  if (hasSupabaseConfig && (!session || inRecoveryFlow)) {
+    return <AuthScreen forceReset={inRecoveryFlow} />
   }
 
   return (
