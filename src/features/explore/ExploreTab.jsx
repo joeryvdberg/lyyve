@@ -81,14 +81,86 @@ function dedupeEventsById(events = []) {
 }
 
 const UPCOMING_EVENTS = [
-  { id: 'evt-1', name: 'DGTL Festival', city: 'Amsterdam', date: '2026-05-02', type: 'Festival' },
-  { id: 'evt-2', name: 'Lente Kabinet', city: 'Amsterdam', date: '2026-05-30', type: 'Festival' },
-  { id: 'evt-3', name: 'Down The Rabbit Hole', city: 'Beuningen', date: '2026-07-03', type: 'Festival' },
-  { id: 'evt-4', name: 'Awakenings Summer Festival', city: 'Hilvarenbeek', date: '2026-07-10', type: 'Festival' },
-  { id: 'evt-5', name: 'Roadburn', city: 'Tilburg', date: '2026-04-16', type: 'Festival' },
-  { id: 'evt-6', name: 'Rotterdam Rave Weekender', city: 'Rotterdam', date: '2026-06-12', type: 'Event' },
-  { id: 'evt-7', name: 'Paradiso Weekend Specials', city: 'Amsterdam', date: '2026-05-09', type: 'Venue event' },
-  { id: 'evt-8', name: 'TivoliVredenburg Electronic Night', city: 'Utrecht', date: '2026-05-15', type: 'Venue event' },
+  {
+    id: 'evt-1',
+    name: 'DGTL Festival',
+    city: 'Amsterdam',
+    date: '2026-05-02',
+    type: 'Festival',
+    venue: 'NDSM Docklands',
+    artist: 'Meerdere artiesten',
+    source: 'fallback',
+  },
+  {
+    id: 'evt-2',
+    name: 'Lente Kabinet',
+    city: 'Amsterdam',
+    date: '2026-05-30',
+    type: 'Festival',
+    venue: 'Het Twiske',
+    artist: 'Meerdere artiesten',
+    source: 'fallback',
+  },
+  {
+    id: 'evt-3',
+    name: 'Down The Rabbit Hole',
+    city: 'Beuningen',
+    date: '2026-07-03',
+    type: 'Festival',
+    venue: 'De Groene Heuvels',
+    artist: 'Meerdere artiesten',
+    source: 'fallback',
+  },
+  {
+    id: 'evt-4',
+    name: 'Awakenings Summer Festival',
+    city: 'Hilvarenbeek',
+    date: '2026-07-10',
+    type: 'Festival',
+    venue: 'Beekse Bergen',
+    artist: 'Meerdere artiesten',
+    source: 'fallback',
+  },
+  {
+    id: 'evt-5',
+    name: 'Roadburn',
+    city: 'Tilburg',
+    date: '2026-04-16',
+    type: 'Festival',
+    venue: '013',
+    artist: 'Meerdere artiesten',
+    source: 'fallback',
+  },
+  {
+    id: 'evt-6',
+    name: 'Rotterdam Rave Weekender',
+    city: 'Rotterdam',
+    date: '2026-06-12',
+    type: 'Event',
+    venue: 'RTM Stage',
+    artist: 'Rotterdam Rave line-up',
+    source: 'fallback',
+  },
+  {
+    id: 'evt-7',
+    name: 'Paradiso Weekend Specials',
+    city: 'Amsterdam',
+    date: '2026-05-09',
+    type: 'Venue event',
+    venue: 'Paradiso',
+    artist: 'Verschillende acts',
+    source: 'fallback',
+  },
+  {
+    id: 'evt-8',
+    name: 'TivoliVredenburg Electronic Night',
+    city: 'Utrecht',
+    date: '2026-05-15',
+    type: 'Venue event',
+    venue: 'TivoliVredenburg',
+    artist: 'Verschillende acts',
+    source: 'fallback',
+  },
 ]
 
 const CITY_NEIGHBORS = {
@@ -170,6 +242,7 @@ export default function ExploreTab({ checkIns, profile }) {
   const [liveEvents, setLiveEvents] = useState([])
   const [liveEventsLoading, setLiveEventsLoading] = useState(false)
   const [liveEventsError, setLiveEventsError] = useState('')
+  const [expandedEventId, setExpandedEventId] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -486,24 +559,52 @@ export default function ExploreTab({ checkIns, profile }) {
         <div className="space-y-2">
           {nearbyUpcoming.map((event) => (
             <div key={event.id} className="rounded-2xl border border-white/10 bg-zinc-950/60 p-3">
-              <p className="text-sm font-semibold text-white">{event.name}</p>
-              <p className="mt-1 text-xs text-zinc-400">
-                {new Date(event.date).toLocaleDateString('nl-NL', {
-                  day: 'numeric',
-                  month: 'long',
-                })}{' '}
-                · {event.city} · {event.type}
-              </p>
-              {event.url ? (
-                <a
-                  href={event.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-flex text-xs font-medium text-cyan-300 hover:text-cyan-200"
-                >
-                  Tickets / event
-                </a>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => setExpandedEventId((prev) => (prev === event.id ? '' : event.id))}
+                className="flex w-full items-start justify-between gap-3 text-left"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-white">{event.name}</p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {new Date(event.date).toLocaleDateString('nl-NL', {
+                      day: 'numeric',
+                      month: 'long',
+                    })}{' '}
+                    · {event.city} · {event.type}
+                  </p>
+                </div>
+                <span className="mt-0.5 text-xs text-cyan-300">{expandedEventId === event.id ? 'Sluit' : 'Info'}</span>
+              </button>
+
+              {expandedEventId === event.id && (
+                <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-xs text-zinc-300">
+                  <p>
+                    <span className="text-zinc-500">Artiest:</span> {event.artist || 'TBA'}
+                  </p>
+                  <p>
+                    <span className="text-zinc-500">Venue:</span> {event.venue || 'Nog niet bekend'}
+                  </p>
+                  <p>
+                    <span className="text-zinc-500">Land:</span> {event.country || 'Onbekend'}
+                  </p>
+                  <p>
+                    <span className="text-zinc-500">Bron:</span> {event.source || 'fallback'}
+                  </p>
+                  {event.url ? (
+                    <a
+                      href={event.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex rounded-full border border-cyan-300/40 bg-cyan-500/15 px-3 py-1 font-medium text-cyan-200 hover:border-cyan-200/70"
+                    >
+                      Ticket / event openen
+                    </a>
+                  ) : (
+                    <p className="text-zinc-500">Nog geen ticketlink beschikbaar.</p>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {nearbyUpcoming.length === 0 && (
