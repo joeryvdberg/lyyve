@@ -343,6 +343,12 @@ function App() {
     await saveProfile(mergedProfile)
   }, [session])
 
+  const handleSignOut = useCallback(async () => {
+    if (hasSupabaseConfig && supabase) {
+      await supabase.auth.signOut()
+    }
+  }, [])
+
   const activeView = useMemo(() => {
     if (activeTab === 'checkin') {
       return <CheckInTab onAddCheckIn={handleAddCheckIn} />
@@ -362,6 +368,7 @@ function App() {
           key={`profile-${profile.id}-${profile.updatedAt ?? 'init'}`}
           profile={profile}
           onSaveProfile={handleSaveProfile}
+          onSignOut={handleSignOut}
           friends={friendProfiles}
           checkIns={myCheckIns}
           badges={badges}
@@ -370,7 +377,7 @@ function App() {
     }
 
     return <FeedTab checkIns={myCheckIns} profile={profile} />
-  }, [activeTab, badges, handleAddCheckIn, handleSaveProfile, myCheckIns, profile])
+  }, [activeTab, badges, handleAddCheckIn, handleSaveProfile, handleSignOut, myCheckIns, profile])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
@@ -408,15 +415,6 @@ function App() {
             )}
           </button>
         </header>
-        {hasSupabaseConfig && session ? (
-          <button
-            type="button"
-            onClick={() => supabase.auth.signOut()}
-            className="mb-3 rounded-lg border border-white/10 bg-zinc-900/55 px-3 py-1 text-[11px] text-zinc-300 hover:border-white/20"
-          >
-            Uitloggen
-          </button>
-        ) : null}
         {activeView}
       </main>
       <BottomNav activeTab={activeTab} onChange={setActiveTab} />

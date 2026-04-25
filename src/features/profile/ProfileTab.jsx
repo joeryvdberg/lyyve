@@ -10,7 +10,14 @@ function avatarInitials(displayName = '') {
   return initials.join('')
 }
 
-export default function ProfileTab({ profile, onSaveProfile, friends = [], checkIns = [], badges = [] }) {
+export default function ProfileTab({
+  profile,
+  onSaveProfile,
+  onSignOut,
+  friends = [],
+  checkIns = [],
+  badges = [],
+}) {
   const [form, setForm] = useState(profile)
   const [saveState, setSaveState] = useState('idle')
   const [isEditing, setIsEditing] = useState(false)
@@ -66,6 +73,99 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [], check
     setIsEditing(false)
   }
 
+  if (isEditing) {
+    return (
+      <section className="space-y-4">
+        <article className="rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm text-zinc-400">Profiel bewerken</p>
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
+            >
+              Sluiten
+            </button>
+          </div>
+          <form className="space-y-3" onSubmit={handleSubmit}>
+            <label className="block text-sm text-zinc-300">
+              Profielfoto uploaden
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
+              />
+            </label>
+            <label className="block text-sm text-zinc-300">
+              Weergavenaam
+              <input
+                value={form.displayName}
+                onChange={handleChange('displayName')}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                placeholder="Bijv. Joery van den Berg"
+              />
+            </label>
+            <label className="block text-sm text-zinc-300">
+              Gebruikersnaam
+              <input
+                value={form.username}
+                onChange={handleChange('username')}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                placeholder="Bijv. joerylive"
+              />
+            </label>
+            <label className="block text-sm text-zinc-300">
+              Bio
+              <textarea
+                rows={3}
+                value={form.bio}
+                onChange={handleChange('bio')}
+                className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                placeholder="Waar ga jij muzikaal op aan?"
+              />
+            </label>
+            <label className="block text-sm text-zinc-300">
+              Favoriete genres
+              <input
+                value={form.favoriteGenres}
+                onChange={handleChange('favoriteGenres')}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                placeholder="Bijv. House, Techno, Indie Dance"
+              />
+            </label>
+            <label className="block text-sm text-zinc-300">
+              Favoriete artiesten
+              <input
+                value={form.favoriteArtists}
+                onChange={handleChange('favoriteArtists')}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                placeholder="Bijv. BICEP, The Blaze"
+              />
+            </label>
+            <label className="block text-sm text-zinc-300">
+              Stad
+              <input
+                value={form.city}
+                onChange={handleChange('city')}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                placeholder="Bijv. Amsterdam"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={!hasChanges || saveState === 'saving'}
+              className="w-full rounded-xl bg-gradient-to-r from-rose-500 via-fuchsia-500 to-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saveState === 'saving' ? 'Opslaan...' : 'Profiel opslaan'}
+            </button>
+            {saveState === 'saved' && <p className="text-xs text-emerald-300">Profiel opgeslagen.</p>}
+          </form>
+        </article>
+      </section>
+    )
+  }
+
   return (
     <section className="space-y-4">
       <article className="rounded-3xl border border-fuchsia-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
@@ -88,11 +188,20 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [], check
         <p className="mt-3 text-sm text-zinc-300">{form.bio || 'Voeg een korte bio toe.'}</p>
         <button
           type="button"
-          onClick={() => setIsEditing((prev) => !prev)}
+          onClick={() => setIsEditing(true)}
           className="mt-4 rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/30"
         >
-          {isEditing ? 'Bewerkmenu sluiten' : 'Profiel bewerken'}
+          Profiel bewerken
         </button>
+        {onSignOut && (
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="ml-2 mt-4 rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/30"
+          >
+            Uitloggen
+          </button>
+        )}
       </article>
 
       <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
@@ -240,85 +349,6 @@ export default function ProfileTab({ profile, onSaveProfile, friends = [], check
         </article>
       )}
 
-      {isEditing && (
-        <article className="rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
-        <p className="text-sm text-zinc-400">Profiel verrijken</p>
-        <form className="mt-3 space-y-3" onSubmit={handleSubmit}>
-          <label className="block text-sm text-zinc-300">
-            Profielfoto uploaden
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarFileChange}
-              className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
-            />
-          </label>
-          <label className="block text-sm text-zinc-300">
-            Weergavenaam
-            <input
-              value={form.displayName}
-              onChange={handleChange('displayName')}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-              placeholder="Bijv. Joery van den Berg"
-            />
-          </label>
-          <label className="block text-sm text-zinc-300">
-            Gebruikersnaam
-            <input
-              value={form.username}
-              onChange={handleChange('username')}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-              placeholder="Bijv. joerylive"
-            />
-          </label>
-          <label className="block text-sm text-zinc-300">
-            Bio
-            <textarea
-              rows={3}
-              value={form.bio}
-              onChange={handleChange('bio')}
-              className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-              placeholder="Waar ga jij muzikaal op aan?"
-            />
-          </label>
-          <label className="block text-sm text-zinc-300">
-            Favoriete genres
-            <input
-              value={form.favoriteGenres}
-              onChange={handleChange('favoriteGenres')}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-              placeholder="Bijv. House, Techno, Indie Dance"
-            />
-          </label>
-          <label className="block text-sm text-zinc-300">
-            Favoriete artiesten
-            <input
-              value={form.favoriteArtists}
-              onChange={handleChange('favoriteArtists')}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-              placeholder="Bijv. BICEP, The Blaze"
-            />
-          </label>
-          <label className="block text-sm text-zinc-300">
-            Stad
-            <input
-              value={form.city}
-              onChange={handleChange('city')}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-              placeholder="Bijv. Amsterdam"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={!hasChanges || saveState === 'saving'}
-            className="w-full rounded-xl bg-gradient-to-r from-rose-500 via-fuchsia-500 to-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saveState === 'saving' ? 'Opslaan...' : 'Profiel opslaan'}
-          </button>
-          {saveState === 'saved' && <p className="text-xs text-emerald-300">Profiel opgeslagen.</p>}
-        </form>
-        </article>
-      )}
     </section>
   )
 }

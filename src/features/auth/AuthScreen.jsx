@@ -100,7 +100,7 @@ export default function AuthScreen() {
           </form>
 
           <div className="mt-4 space-y-2">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Of ga verder met</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Of ga verder met Google</p>
             <button
               type="button"
               onClick={() => handleOAuthSignIn('google')}

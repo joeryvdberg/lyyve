@@ -163,7 +163,6 @@ export default function CheckInTab({ onAddCheckIn }) {
   const [note, setNote] = useState('')
   const [photoDataUrl, setPhotoDataUrl] = useState('')
   const [photoName, setPhotoName] = useState('')
-  const [photoInputMode, setPhotoInputMode] = useState('camera')
   const [artistPool, setArtistPool] = useState([])
   const [venuePool, setVenuePool] = useState([])
 
@@ -340,34 +339,9 @@ export default function CheckInTab({ onAddCheckIn }) {
           </label>
           <label className="block text-sm text-zinc-300">
             Foto van je moment
-            <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-zinc-950/70 p-1">
-              <button
-                type="button"
-                onClick={() => setPhotoInputMode('camera')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  photoInputMode === 'camera'
-                    ? 'bg-cyan-500/25 text-cyan-200'
-                    : 'text-zinc-300 hover:bg-zinc-800/80'
-                }`}
-              >
-                Foto maken
-              </button>
-              <button
-                type="button"
-                onClick={() => setPhotoInputMode('upload')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  photoInputMode === 'upload'
-                    ? 'bg-cyan-500/25 text-cyan-200'
-                    : 'text-zinc-300 hover:bg-zinc-800/80'
-                }`}
-              >
-                Bestand uploaden
-              </button>
-            </div>
             <input
               type="file"
               accept="image/*"
-              capture={photoInputMode === 'camera' ? 'environment' : undefined}
               onChange={handlePhotoChange}
               className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
             />
