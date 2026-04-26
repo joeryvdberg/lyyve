@@ -393,42 +393,6 @@ export default function ProfileTab({
         </div>
       </article>
 
-      {relationView && (
-        <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">
-              {relationView === 'followers' ? 'Volgers' : 'Volgend'}
-            </h3>
-            <button
-              type="button"
-              onClick={() => setRelationView('')}
-              className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
-            >
-              Sluiten
-            </button>
-          </div>
-          <div className="space-y-2">
-            {(relationView === 'followers' ? followers : following).map((person) => (
-              <button
-                key={`${relationView}-${person.id}`}
-                type="button"
-                onClick={() => {
-                  setSelectedFriendId(person.id)
-                  setRelationView('')
-                }}
-                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-left hover:border-white/20"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-white">{person.displayName}</p>
-                  <p className="text-xs text-zinc-400">@{person.username}</p>
-                </div>
-                <span className="text-xs text-zinc-500">{person.city}</span>
-              </button>
-            ))}
-          </div>
-        </article>
-      )}
-
       {selectedFriend && friendStats && (
         <article className="space-y-3 rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
           <div className="flex items-center justify-between">
@@ -574,6 +538,44 @@ export default function ProfileTab({
             </div>
           </div>
         </article>
+      )}
+
+      {relationView && (
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/55 p-4 backdrop-blur-sm">
+          <article className="flex max-h-[78svh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/95 shadow-2xl shadow-fuchsia-500/20">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <h3 className="text-lg font-semibold text-white">
+                {relationView === 'followers' ? 'Volgers' : 'Volgend'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setRelationView('')}
+                className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
+              >
+                Sluiten
+              </button>
+            </div>
+            <div className="flex-1 space-y-2 overflow-y-auto p-4">
+              {(relationView === 'followers' ? followers : following).map((person) => (
+                <button
+                  key={`${relationView}-${person.id}`}
+                  type="button"
+                  onClick={() => {
+                    setSelectedFriendId(person.id)
+                    setRelationView('')
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-left hover:border-white/20"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-white">{person.displayName}</p>
+                    <p className="text-xs text-zinc-400">@{person.username}</p>
+                  </div>
+                  <span className="text-xs text-zinc-500">{person.city}</span>
+                </button>
+              ))}
+            </div>
+          </article>
+        </div>
       )}
 
     </section>
