@@ -2,9 +2,11 @@ import { useState } from 'react'
 
 export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn }) {
   const [editingId, setEditingId] = useState('')
+  const [menuOpenId, setMenuOpenId] = useState('')
   const [draft, setDraft] = useState({ artist: '', venue: '', note: '', rating: 8.0, photoDataUrl: '' })
 
   function startEdit(item) {
+    setMenuOpenId('')
     setEditingId(item.id)
     setDraft({
       artist: item.artist || '',
@@ -47,6 +49,7 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
     if (!shouldDelete) return
     await onDeleteCheckIn(itemId)
     if (editingId === itemId) setEditingId('')
+    setMenuOpenId('')
   }
 
   const uniqueArtists = new Set(checkIns.map((item) => item.artist.toLowerCase())).size
@@ -172,9 +175,37 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
                       <p className="text-sm font-semibold text-white">{item.artist}</p>
                       <p className="text-xs text-zinc-400">{item.venue}</p>
                     </div>
-                    <p className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-300">
-                      {item.rating.toFixed(1)}
-                    </p>
+                    <div className="relative flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMenuOpenId((prev) => (prev === item.id ? '' : item.id))}
+                        className="grid h-7 w-7 place-items-center rounded-full border border-white/15 bg-zinc-950/70 text-zinc-300 hover:border-white/30"
+                        aria-label="Check-in acties"
+                      >
+                        <span className="text-base leading-none">...</span>
+                      </button>
+                      {menuOpenId === item.id && (
+                        <div className="absolute right-0 top-8 z-10 w-32 overflow-hidden rounded-xl border border-white/15 bg-zinc-900/95 shadow-xl">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(item)}
+                            className="block w-full px-3 py-2 text-left text-xs text-zinc-200 hover:bg-white/5"
+                          >
+                            Bewerken
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(item.id)}
+                            className="block w-full px-3 py-2 text-left text-xs text-rose-200 hover:bg-white/5"
+                          >
+                            Verwijderen
+                          </button>
+                        </div>
+                      )}
+                      <p className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-300">
+                        {item.rating.toFixed(1)}
+                      </p>
+                    </div>
                   </div>
                   {item.note && <p className="mt-2 text-xs text-zinc-300">{item.note}</p>}
                   {item.photoDataUrl && (
@@ -184,20 +215,6 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
                       className="mt-2 h-24 w-full rounded-lg object-cover"
                     />
                   )}
-                  <button
-                    type="button"
-                    onClick={() => startEdit(item)}
-                    className="mt-2 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:border-white/30"
-                  >
-                    Bewerken
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(item.id)}
-                    className="ml-2 mt-2 rounded-lg border border-rose-300/25 px-2.5 py-1 text-[11px] font-semibold text-rose-200 hover:border-rose-300/50"
-                  >
-                    Verwijderen
-                  </button>
                 </>
               )}
             </div>

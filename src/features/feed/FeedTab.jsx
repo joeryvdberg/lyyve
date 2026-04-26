@@ -35,6 +35,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
   const [openComments, setOpenComments] = useState({})
   const [commentErrors, setCommentErrors] = useState({})
   const [editingId, setEditingId] = useState('')
+  const [menuOpenId, setMenuOpenId] = useState('')
   const [editDraft, setEditDraft] = useState({ artist: '', venue: '', note: '', rating: 8, photoDataUrl: '' })
 
   const myFeedItems = checkIns.map((item) => ({
@@ -136,6 +137,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
   }
 
   function startEdit(item) {
+    setMenuOpenId('')
     setEditingId(item.id)
     setEditDraft({
       artist: item.artist ?? '',
@@ -178,6 +180,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
     if (!shouldDelete) return
     await onDeleteCheckIn(itemId)
     if (editingId === itemId) setEditingId('')
+    setMenuOpenId('')
   }
 
   return (
@@ -211,20 +214,52 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
                   </p>
                   <p className="mt-1 text-xs text-zinc-400">{item.event}</p>
                 </div>
-                <div className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/35 bg-zinc-950/80 px-3 py-2">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-3.5 w-3.5 text-rose-300"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
-                  </svg>
-                  <p className="text-sm font-bold leading-none text-rose-300">{item.rating.toFixed(1)}</p>
+                <div className="relative flex items-center gap-2">
+                  {!item.isFriendPost && editingId !== item.id && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setMenuOpenId((prev) => (prev === item.id ? '' : item.id))}
+                        className="grid h-7 w-7 place-items-center rounded-full border border-white/15 bg-zinc-950/70 text-zinc-300 hover:border-white/30"
+                        aria-label="Post acties"
+                      >
+                        <span className="text-base leading-none">...</span>
+                      </button>
+                      {menuOpenId === item.id && (
+                        <div className="absolute right-0 top-8 z-10 w-32 overflow-hidden rounded-xl border border-white/15 bg-zinc-900/95 shadow-xl">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(item)}
+                            className="block w-full px-3 py-2 text-left text-xs text-zinc-200 hover:bg-white/5"
+                          >
+                            Bewerken
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeCheckIn(item.id)}
+                            className="block w-full px-3 py-2 text-left text-xs text-rose-200 hover:bg-white/5"
+                          >
+                            Verwijderen
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <div className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300/35 bg-zinc-950/80 px-3 py-2">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3.5 w-3.5 text-rose-300"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
+                    </svg>
+                    <p className="text-sm font-bold leading-none text-rose-300">{item.rating.toFixed(1)}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -309,24 +344,6 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
                 </div>
               ) : (
                 <p className="text-sm leading-relaxed text-zinc-200">{item.note}</p>
-              )}
-              {!item.isFriendPost && editingId !== item.id && (
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(item)}
-                    className="rounded-lg border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:border-white/30"
-                  >
-                    Bewerken
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeCheckIn(item.id)}
-                    className="rounded-lg border border-rose-300/25 px-2.5 py-1 text-[11px] font-semibold text-rose-200 hover:border-rose-300/50"
-                  >
-                    Verwijderen
-                  </button>
-                </div>
               )}
               {item.id && (
                 <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-zinc-950/40 p-3">
