@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
-export default function StatsTab({ checkIns, onUpdateCheckIn }) {
+export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn }) {
   const [editingId, setEditingId] = useState('')
-  const [draft, setDraft] = useState({ artist: '', venue: '', note: '', rating: 8.0 })
+  const [draft, setDraft] = useState({ artist: '', venue: '', note: '', rating: 8.0, photoDataUrl: '' })
 
   function startEdit(item) {
     setEditingId(item.id)
@@ -11,6 +11,7 @@ export default function StatsTab({ checkIns, onUpdateCheckIn }) {
       venue: item.venue || '',
       note: item.note || '',
       rating: Number(item.rating ?? 8.0),
+      photoDataUrl: item.photoDataUrl || '',
     })
   }
 
@@ -24,8 +25,28 @@ export default function StatsTab({ checkIns, onUpdateCheckIn }) {
       venue,
       note: draft.note.trim(),
       rating: Number(draft.rating),
+      photoDataUrl: draft.photoDataUrl || '',
     })
     setEditingId('')
+  }
+
+  function handleEditPhotoFile(event) {
+    const file = event.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result ?? '')
+      setDraft((prev) => ({ ...prev, photoDataUrl: result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function handleDelete(itemId) {
+    if (!onDeleteCheckIn) return
+    const shouldDelete = window.confirm('Check-in verwijderen? Deze actie kan je niet ongedaan maken.')
+    if (!shouldDelete) return
+    await onDeleteCheckIn(itemId)
+    if (editingId === itemId) setEditingId('')
   }
 
   const uniqueArtists = new Set(checkIns.map((item) => item.artist.toLowerCase())).size
@@ -115,6 +136,18 @@ export default function StatsTab({ checkIns, onUpdateCheckIn }) {
                       className="mt-1 w-full accent-fuchsia-500"
                     />
                   </label>
+                  <label className="block text-xs text-zinc-400">
+                    Foto toevoegen / vervangen
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditPhotoFile}
+                      className="mt-1 block w-full rounded-lg border border-white/10 bg-zinc-900/80 px-2.5 py-1.5 text-xs text-zinc-300 file:mr-2 file:rounded file:border-0 file:bg-zinc-800 file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-zinc-100"
+                    />
+                  </label>
+                  {draft.photoDataUrl && (
+                    <img src={draft.photoDataUrl} alt="Preview" className="h-24 w-full rounded-lg object-cover" />
+                  )}
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -144,12 +177,26 @@ export default function StatsTab({ checkIns, onUpdateCheckIn }) {
                     </p>
                   </div>
                   {item.note && <p className="mt-2 text-xs text-zinc-300">{item.note}</p>}
+                  {item.photoDataUrl && (
+                    <img
+                      src={item.photoDataUrl}
+                      alt={`${item.artist} check-in`}
+                      className="mt-2 h-24 w-full rounded-lg object-cover"
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={() => startEdit(item)}
                     className="mt-2 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:border-white/30"
                   >
                     Bewerken
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(item.id)}
+                    className="ml-2 mt-2 rounded-lg border border-rose-300/25 px-2.5 py-1 text-[11px] font-semibold text-rose-200 hover:border-rose-300/50"
+                  >
+                    Verwijderen
                   </button>
                 </>
               )}

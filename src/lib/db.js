@@ -31,6 +31,10 @@ export async function saveCheckIn(checkIn) {
   await db.checkIns.put(checkIn)
 }
 
+export async function deleteCheckIn(checkInId) {
+  await db.checkIns.delete(checkInId)
+}
+
 export async function getProfile() {
   return db.profiles.get('me')
 }

@@ -29,13 +29,13 @@ const friendFeedItems = [
   },
 ]
 
-export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onOpenProfile }) {
+export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCheckIn, onOpenProfile }) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
   const [commentErrors, setCommentErrors] = useState({})
   const [editingId, setEditingId] = useState('')
-  const [editDraft, setEditDraft] = useState({ artist: '', venue: '', note: '', rating: 8 })
+  const [editDraft, setEditDraft] = useState({ artist: '', venue: '', note: '', rating: 8, photoDataUrl: '' })
 
   const myFeedItems = checkIns.map((item) => ({
     id: item.id,
@@ -142,6 +142,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onOpenProf
       venue: item.event ?? '',
       note: item.note ?? '',
       rating: Number(item.rating ?? 8),
+      photoDataUrl: item.photoDataUrl ?? '',
     })
   }
 
@@ -155,8 +156,28 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onOpenProf
       venue,
       note: editDraft.note.trim(),
       rating: Number(editDraft.rating),
+      photoDataUrl: editDraft.photoDataUrl || '',
     })
     setEditingId('')
+  }
+
+  function handleEditPhotoFile(event) {
+    const file = event.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result ?? '')
+      setEditDraft((prev) => ({ ...prev, photoDataUrl: result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function removeCheckIn(itemId) {
+    if (!onDeleteCheckIn) return
+    const shouldDelete = window.confirm('Check-in verwijderen? Deze actie kan je niet ongedaan maken.')
+    if (!shouldDelete) return
+    await onDeleteCheckIn(itemId)
+    if (editingId === itemId) setEditingId('')
   }
 
   return (
@@ -257,6 +278,18 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onOpenProf
                       className="mt-1 w-full accent-fuchsia-500"
                     />
                   </label>
+                  <label className="block text-xs text-zinc-400">
+                    Foto toevoegen / vervangen
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditPhotoFile}
+                      className="mt-1 block w-full rounded-lg border border-white/10 bg-zinc-900/80 px-2.5 py-1.5 text-xs text-zinc-300 file:mr-2 file:rounded file:border-0 file:bg-zinc-800 file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-zinc-100"
+                    />
+                  </label>
+                  {editDraft.photoDataUrl && (
+                    <img src={editDraft.photoDataUrl} alt="Preview" className="h-24 w-full rounded-lg object-cover" />
+                  )}
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -278,13 +311,22 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onOpenProf
                 <p className="text-sm leading-relaxed text-zinc-200">{item.note}</p>
               )}
               {!item.isFriendPost && editingId !== item.id && (
-                <button
-                  type="button"
-                  onClick={() => startEdit(item)}
-                  className="mt-2 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:border-white/30"
-                >
-                  Bewerken
-                </button>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(item)}
+                    className="rounded-lg border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:border-white/30"
+                  >
+                    Bewerken
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeCheckIn(item.id)}
+                    className="rounded-lg border border-rose-300/25 px-2.5 py-1 text-[11px] font-semibold text-rose-200 hover:border-rose-300/50"
+                  >
+                    Verwijderen
+                  </button>
+                </div>
               )}
               {item.id && (
                 <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-zinc-950/40 p-3">

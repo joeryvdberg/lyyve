@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
+import { evaluateBadges } from '../../lib/badges'
 
 function avatarInitials(displayName = '') {
   const parts = displayName
@@ -50,6 +51,10 @@ export default function ProfileTab({
         ? (checkIns.reduce((sum, item) => sum + item.rating, 0) / checkIns.length).toFixed(1)
         : '0.0'
     return { total: checkIns.length, uniqueArtists, uniquePlaces, average }
+  }, [selectedFriend])
+  const selectedFriendBadges = useMemo(() => {
+    if (!selectedFriend) return []
+    return evaluateBadges(selectedFriend.checkIns ?? [], [])
   }, [selectedFriend])
 
   const getBadgeEmoji = (badgeId) => {
@@ -254,6 +259,186 @@ export default function ProfileTab({
             </button>
             {saveState === 'saved' && <p className="text-xs text-emerald-300">Profiel opgeslagen.</p>}
           </form>
+        </article>
+      </section>
+    )
+  }
+
+  if (selectedFriend && friendStats) {
+    const unlockedFriendBadges = selectedFriendBadges.filter((badge) => badge.unlocked)
+    return (
+      <section className="space-y-4">
+        <article className="rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setSelectedFriendId('')}
+              className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
+            >
+              Terug
+            </button>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Profiel</p>
+          </div>
+          <h2 className="mt-3 text-3xl font-semibold text-white">
+            {selectedFriend.displayName}
+            <span className="text-cyan-300">.</span>
+          </h2>
+          <p className="mt-1 text-sm text-zinc-400">@{selectedFriend.username}</p>
+          <p className="mt-3 text-sm text-zinc-300">{selectedFriend.bio}</p>
+
+          {unlockedFriendBadges.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {unlockedFriendBadges.map((badge) => (
+                <span
+                  key={`friend-header-badge-${badge.id}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-cyan-300/45 bg-cyan-500/15 px-2.5 py-1 text-[11px] font-semibold text-cyan-100"
+                >
+                  <span aria-hidden="true">{getBadgeEmoji(badge.id)}</span>
+                  {badge.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
+          <div className="grid grid-cols-4 gap-2">
+            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+              <p className="text-sm font-semibold text-white">{friendStats.total}</p>
+              <p className="text-[11px] text-zinc-400">Check-ins</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+              <p className="text-sm font-semibold text-white">{friendStats.uniqueArtists}</p>
+              <p className="text-[11px] text-zinc-400">Artiesten</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+              <p className="text-sm font-semibold text-white">{friendStats.uniquePlaces}</p>
+              <p className="text-[11px] text-zinc-400">Plekken</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+              <p className="text-sm font-semibold text-rose-300">{friendStats.average}</p>
+              <p className="text-[11px] text-zinc-400">Gemiddeld</p>
+            </div>
+          </div>
+        </article>
+
+        <article className="space-y-3 rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
+          <p className="text-sm font-semibold text-zinc-200">Persoonlijke feed</p>
+          <div className="space-y-3">
+            {(selectedFriend.checkIns ?? [])
+              .slice()
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .map((item) => (
+                <article key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/60">
+                  <div className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{item.artist}</p>
+                        <p className="text-xs text-zinc-400">{item.venue}</p>
+                        <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">
+                          {item.createdAt
+                            ? new Date(item.createdAt).toLocaleDateString('nl-NL', {
+                                day: 'numeric',
+                                month: 'short',
+                              })
+                            : 'Net toegevoegd'}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-300">
+                        {item.rating.toFixed(1)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-zinc-300">{item.note}</p>
+                  </div>
+                  {item.photoDataUrl && (
+                    <div className="overflow-hidden border-t border-white/10 bg-zinc-950/40">
+                      <img
+                        src={item.photoDataUrl}
+                        alt={`${item.artist} check-in`}
+                        className="h-44 w-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
+                  <div className="border-t border-white/10 p-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleLike(item.id)}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                          getInteraction(item.id).likedByMe
+                            ? 'border-cyan-300/60 bg-cyan-400/20 text-cyan-200'
+                            : 'border-white/15 bg-zinc-900/80 text-zinc-300 hover:border-white/30'
+                        }`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5">
+                          <path
+                            d="M12 20.5s-6.5-3.9-9.1-8C1.2 9.7 2.2 6.5 5.4 5.6c2-.5 3.8.3 4.9 2 1.1-1.7 2.9-2.5 4.9-2 3.2.9 4.2 4.1 2.5 6.9-2.6 4.1-9.1 8-9.1 8z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            fill={getInteraction(item.id).likedByMe ? 'currentColor' : 'none'}
+                          />
+                        </svg>
+                        {getInteraction(item.id).likeCount}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCommentPanel(item.id)}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                          openComments[item.id]
+                            ? 'border-sky-300/55 bg-sky-500/20 text-sky-200'
+                            : 'border-white/15 bg-zinc-900/80 text-zinc-300 hover:border-white/30'
+                        }`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
+                          <path
+                            d="M7 10h10M7 14h6m-5 7l-4 2 1-5a8 8 0 1 1 2.3 2.3z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        {getInteraction(item.id).comments.length}
+                      </button>
+                    </div>
+                    {openComments[item.id] && (
+                      <div className="mt-3 space-y-2">
+                        <div className="space-y-1.5">
+                          {getInteraction(item.id).comments.length === 0 && (
+                            <p className="text-xs text-zinc-500">Nog geen reacties. Wees de eerste.</p>
+                          )}
+                          {getInteraction(item.id).comments.map((comment) => (
+                            <p key={comment.id} className="text-xs text-zinc-300">
+                              <span className="font-semibold text-white">{comment.user}:</span> {comment.text}
+                            </p>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={commentDrafts[item.id] ?? ''}
+                            onChange={(event) =>
+                              setCommentDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))
+                            }
+                            placeholder="Plaats een reactie..."
+                            className="w-full rounded-xl border border-white/10 bg-zinc-900/80 px-3 py-2 text-xs text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => addComment(item.id)}
+                            className="rounded-xl border border-sky-400/35 bg-sky-500/20 px-3 py-2 text-xs font-semibold text-sky-200 hover:border-sky-300/60"
+                          >
+                            Plaats
+                          </button>
+                        </div>
+                        {commentErrors[item.id] && <p className="text-xs text-amber-300">{commentErrors[item.id]}</p>}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              ))}
+            {(selectedFriend.checkIns ?? []).length === 0 && (
+              <p className="text-xs text-zinc-500">Nog geen check-ins van deze gebruiker.</p>
+            )}
+          </div>
         </article>
       </section>
     )

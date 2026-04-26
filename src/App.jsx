@@ -7,7 +7,16 @@ import FeedTab from './features/feed/FeedTab'
 import ProfileTab from './features/profile/ProfileTab'
 import StatsTab from './features/stats/StatsTab'
 import { evaluateBadges } from './lib/badges'
-import { getAllCheckIns, getBadges, getProfile, saveBadges, saveCatalogEntry, saveCheckIn, saveProfile } from './lib/db'
+import {
+  deleteCheckIn,
+  getAllCheckIns,
+  getBadges,
+  getProfile,
+  saveBadges,
+  saveCatalogEntry,
+  saveCheckIn,
+  saveProfile,
+} from './lib/db'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 
 const ASSET_BASE = import.meta.env.BASE_URL
@@ -395,6 +404,18 @@ function App() {
     }
   }, [])
 
+  const handleDeleteCheckIn = useCallback(
+    async (checkInId) => {
+      setMyCheckIns((prev) => prev.filter((item) => item.id !== checkInId))
+      if (hasSupabaseConfig && supabase && session?.user?.id) {
+        await supabase.from('check_ins').delete().eq('id', checkInId).eq('user_id', session.user.id)
+      } else {
+        await deleteCheckIn(checkInId)
+      }
+    },
+    [session]
+  )
+
   const handleOpenProfileFromFeed = useCallback((friendId = '') => {
     setFocusedFriendId(friendId)
     setActiveTab('profile')
@@ -406,7 +427,13 @@ function App() {
     }
 
     if (activeTab === 'stats') {
-      return <StatsTab checkIns={myCheckIns} onUpdateCheckIn={handleUpdateCheckIn} />
+      return (
+        <StatsTab
+          checkIns={myCheckIns}
+          onUpdateCheckIn={handleUpdateCheckIn}
+          onDeleteCheckIn={handleDeleteCheckIn}
+        />
+      )
     }
 
     if (activeTab === 'explore') {
@@ -433,10 +460,11 @@ function App() {
         checkIns={myCheckIns}
         profile={profile}
         onUpdateCheckIn={handleUpdateCheckIn}
+        onDeleteCheckIn={handleDeleteCheckIn}
         onOpenProfile={handleOpenProfileFromFeed}
       />
     )
-  }, [activeTab, badges, focusedFriendId, handleAddCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleUpdateCheckIn, myCheckIns, profile])
+  }, [activeTab, badges, focusedFriendId, handleAddCheckIn, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleUpdateCheckIn, myCheckIns, profile])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
