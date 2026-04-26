@@ -32,6 +32,7 @@ export default function ProfileTab({
   const selectedFriend = friends.find((friend) => friend.id === selectedFriendId) ?? null
   const followers = friends
   const following = friends
+  const unlockedBadges = useMemo(() => badges.filter((badge) => badge.unlocked), [badges])
 
   const friendStats = useMemo(() => {
     if (!selectedFriend) return null
@@ -44,6 +45,14 @@ export default function ProfileTab({
         : '0.0'
     return { total: checkIns.length, uniqueArtists, uniquePlaces, average }
   }, [selectedFriend])
+
+  const getBadgeEmoji = (badgeId) => {
+    if (badgeId === 'festival-veteran') return '🎪'
+    if (badgeId === 'globe-trotter') return '🌍'
+    if (badgeId === 'front-row') return '🎫'
+    if (badgeId === 'early-adopter') return '✨'
+    return '🏆'
+  }
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }))
@@ -183,6 +192,19 @@ export default function ProfileTab({
               {form.displayName || 'Jouw naam'}
               <span className="text-cyan-300">.</span>
             </h2>
+            {unlockedBadges.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {unlockedBadges.slice(0, 4).map((badge) => (
+                  <span
+                    key={`header-badge-${badge.id}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-cyan-300/45 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-100"
+                  >
+                    <span aria-hidden="true">{getBadgeEmoji(badge.id)}</span>
+                    {badge.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <p className="mt-3 text-sm text-zinc-300">{form.bio || 'Voeg een korte bio toe.'}</p>
@@ -237,11 +259,36 @@ export default function ProfileTab({
             {badges.filter((badge) => badge.unlocked).length}/{badges.length}
           </p>
         </div>
+        {unlockedBadges.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {unlockedBadges.map((badge) => (
+              <div
+                key={`unlocked-${badge.id}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/50 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-200"
+              >
+                <span aria-hidden="true">{getBadgeEmoji(badge.id)}</span>
+                <span>{badge.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="space-y-2">
           {badges.map((badge) => (
-            <div key={badge.id} className="rounded-xl border border-white/10 bg-zinc-950/60 p-3">
+            <div
+              key={badge.id}
+              className={`rounded-xl border p-3 ${
+                badge.unlocked
+                  ? 'border-emerald-300/35 bg-gradient-to-r from-emerald-500/12 to-cyan-500/12'
+                  : 'border-white/10 bg-zinc-950/60'
+              }`}
+            >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-white">{badge.name}</p>
+                <p className="text-sm font-semibold text-white">
+                  <span className="mr-1.5" aria-hidden="true">
+                    {getBadgeEmoji(badge.id)}
+                  </span>
+                  {badge.name}
+                </p>
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                     badge.unlocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800 text-zinc-400'
@@ -251,6 +298,16 @@ export default function ProfileTab({
                 </span>
               </div>
               <p className="mt-1 text-xs text-zinc-400">{badge.description}</p>
+              {!badge.unlocked && (
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400/80 to-fuchsia-400/80"
+                    style={{
+                      width: `${Math.min(100, Math.round((badge.progress / Math.max(1, badge.threshold)) * 100))}%`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
           ))}
           {badges.length === 0 && <p className="text-xs text-zinc-500">Nog geen badges berekend.</p>}

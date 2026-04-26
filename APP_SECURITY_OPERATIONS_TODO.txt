@@ -1,0 +1,58 @@
+[ ] Bevestig auth redirect configuratie in Supabase.
+    - Zet Authentication -> URL Configuration -> Site URL op: https://joeryvdberg.github.io/lyyve/
+    - Voeg Additional Redirect URLs toe:
+      - https://joeryvdberg.github.io/lyyve/
+      - http://localhost:5175/
+
+[ ] Verifieer account-isolatie end-to-end.
+    - Test in normale browser met account A.
+    - Test in incognito met account B.
+    - Controleer dat check-ins/profieldata niet kruisen.
+    - Controleer dat uitloggen altijd teruggaat naar auth-scherm.
+
+[ ] Rond Supabase database hardening af.
+    - Controleer dat RLS aan staat op profiles en check_ins.
+    - Controleer policies: alleen eigen profiel/check-ins muteren.
+    - Verwijder ongebruikte of te brede policies.
+
+[ ] Draai secret hygiene en key-rotatie.
+    - Roteer eerder gedeelde Supabase secret key (sb_secret_...).
+    - Bevestig dat alleen publishable key in frontend gebruikt wordt.
+    - Controleer GitHub repo secrets op juistheid en minimum scope.
+
+[ ] Configureer betrouwbare transactional e-mail (later, production).
+    - Kies provider (bijv. Resend/Postmark/SES).
+    - Koop en koppel domein voor no-reply afzender.
+    - Stel SPF, DKIM en DMARC in.
+    - Koppel Custom SMTP in Supabase Auth.
+    - Test signup/confirm/reset mails op deliverability.
+
+[ ] Verbeter auth UX en foutafhandeling.
+    - Voeg duidelijke states toe voor "mail verzonden", "token verlopen", "link al gebruikt".
+    - Voeg rate-limit en lockout messaging toe op login failures.
+    - Voeg resend confirmation actie toe.
+
+[ ] Implementeer social auth roadmap (gefaseerd).
+    - [Google] Monitor live flow en foutpercentages.
+    - [Facebook] Hervat setup zodra Meta app-flow zonder blockers rond is.
+    - [Apple] Hervat na Apple Developer Program enrollment.
+
+[ ] Harden media upload en privacy.
+    - Verplaats foto-opslag naar Supabase Storage.
+    - Valideer bestandstype/grootte server-side.
+    - Voeg content-type controls en publieke/private bucket keuze toe.
+
+[ ] Operational readiness en observability.
+    - Definieer incident-procedure voor auth storingen.
+    - Voeg foutlogging/monitoring toe (frontend + backend events).
+    - Maak release checklist voor auth changes (lint/build/manual smoke test).
+
+[ ] Performance en resilience.
+    - Splits grote JS chunks (auth + explore lazy loading waar mogelijk).
+    - Voer retry/backoff in op kritieke network calls.
+    - Verifieer service-worker gedrag bij auth/session wijzigingen.
+
+[ ] Procesafspraak voor deze checklist.
+    - Deze file blijft de single source of truth voor open acties.
+    - Bij elke afgeronde taak: [ ] -> [x] + datum noteren.
+    - Bij nieuwe requirements: nieuw item toevoegen met concrete subacties.
