@@ -27,11 +27,13 @@ const friendFeedItems = [
   },
 ]
 
-export default function FeedTab({ checkIns, profile }) {
+export default function FeedTab({ checkIns, profile, onUpdateCheckIn }) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
   const [commentErrors, setCommentErrors] = useState({})
+  const [editingId, setEditingId] = useState('')
+  const [editDraft, setEditDraft] = useState({ artist: '', venue: '', note: '', rating: 8 })
 
   const myFeedItems = checkIns.map((item) => ({
     id: item.id,
@@ -130,6 +132,30 @@ export default function FeedTab({ checkIns, profile }) {
     setOpenComments((prev) => ({ ...prev, [itemId]: !prev[itemId] }))
   }
 
+  function startEdit(item) {
+    setEditingId(item.id)
+    setEditDraft({
+      artist: item.artist ?? '',
+      venue: item.event ?? '',
+      note: item.note ?? '',
+      rating: Number(item.rating ?? 8),
+    })
+  }
+
+  async function saveEdit(itemId) {
+    if (!onUpdateCheckIn) return
+    const artist = editDraft.artist.trim()
+    const venue = editDraft.venue.trim()
+    if (!artist || !venue) return
+    await onUpdateCheckIn(itemId, {
+      artist,
+      venue,
+      note: editDraft.note.trim(),
+      rating: Number(editDraft.rating),
+    })
+    setEditingId('')
+  }
+
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold text-white">
@@ -182,7 +208,74 @@ export default function FeedTab({ checkIns, profile }) {
               </div>
             )}
             <div className="p-4 pt-3">
-              <p className="text-sm leading-relaxed text-zinc-200">{item.note}</p>
+              {editingId === item.id && !item.isFriendPost ? (
+                <div className="space-y-2 rounded-2xl border border-white/10 bg-zinc-950/35 p-3">
+                  <label className="block text-xs text-zinc-400">
+                    Artiest
+                    <input
+                      value={editDraft.artist}
+                      onChange={(event) => setEditDraft((prev) => ({ ...prev, artist: event.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900/80 px-2.5 py-1.5 text-sm text-white outline-none ring-cyan-400 focus:ring-2"
+                    />
+                  </label>
+                  <label className="block text-xs text-zinc-400">
+                    Venue / festival
+                    <input
+                      value={editDraft.venue}
+                      onChange={(event) => setEditDraft((prev) => ({ ...prev, venue: event.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900/80 px-2.5 py-1.5 text-sm text-white outline-none ring-cyan-400 focus:ring-2"
+                    />
+                  </label>
+                  <label className="block text-xs text-zinc-400">
+                    Notitie
+                    <textarea
+                      rows={2}
+                      value={editDraft.note}
+                      onChange={(event) => setEditDraft((prev) => ({ ...prev, note: event.target.value }))}
+                      className="mt-1 w-full resize-none rounded-lg border border-white/10 bg-zinc-900/80 px-2.5 py-1.5 text-sm text-white outline-none ring-cyan-400 focus:ring-2"
+                    />
+                  </label>
+                  <label className="block text-xs text-zinc-400">
+                    Rating ({Number(editDraft.rating).toFixed(1)})
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                      value={editDraft.rating}
+                      onChange={(event) => setEditDraft((prev) => ({ ...prev, rating: Number(event.target.value) }))}
+                      className="mt-1 w-full accent-fuchsia-500"
+                    />
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(item.id)}
+                      className="rounded-lg bg-cyan-500/25 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/35"
+                    >
+                      Opslaan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId('')}
+                      className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-zinc-300 hover:border-white/30"
+                    >
+                      Annuleren
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed text-zinc-200">{item.note}</p>
+              )}
+              {!item.isFriendPost && editingId !== item.id && (
+                <button
+                  type="button"
+                  onClick={() => startEdit(item)}
+                  className="mt-2 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:border-white/30"
+                >
+                  Bewerken
+                </button>
+              )}
               {item.id && (
                 <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-zinc-950/40 p-3">
                   <div className="flex items-center gap-2">

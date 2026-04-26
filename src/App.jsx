@@ -343,6 +343,51 @@ function App() {
     await saveProfile(mergedProfile)
   }, [session])
 
+  const handleUpdateCheckIn = useCallback(
+    async (checkInId, updates) => {
+      setMyCheckIns((prev) =>
+        prev.map((item) =>
+          item.id === checkInId
+            ? {
+                ...item,
+                ...updates,
+                updatedAt: new Date().toISOString(),
+              }
+            : item
+        )
+      )
+
+      const existing = myCheckIns.find((item) => item.id === checkInId)
+      if (!existing) return
+      const merged = {
+        ...existing,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      }
+
+      if (hasSupabaseConfig && supabase && session?.user?.id) {
+        await supabase
+          .from('check_ins')
+          .update({
+            artist: merged.artist,
+            venue: merged.venue,
+            note: merged.note ?? '',
+            rating: merged.rating,
+            photo_url: merged.photoDataUrl || null,
+            city: merged.city || null,
+            country: merged.country || null,
+          })
+          .eq('id', checkInId)
+          .eq('user_id', session.user.id)
+      } else {
+        await saveCheckIn(merged)
+      }
+
+      await Promise.all([saveCatalogEntry('artist', merged.artist), saveCatalogEntry('place', merged.venue)])
+    },
+    [myCheckIns, session]
+  )
+
   const handleSignOut = useCallback(async () => {
     if (hasSupabaseConfig && supabase) {
       await supabase.auth.signOut()
@@ -355,7 +400,7 @@ function App() {
     }
 
     if (activeTab === 'stats') {
-      return <StatsTab checkIns={myCheckIns} />
+      return <StatsTab checkIns={myCheckIns} onUpdateCheckIn={handleUpdateCheckIn} />
     }
 
     if (activeTab === 'explore') {
@@ -376,8 +421,8 @@ function App() {
       )
     }
 
-    return <FeedTab checkIns={myCheckIns} profile={profile} />
-  }, [activeTab, badges, handleAddCheckIn, handleSaveProfile, handleSignOut, myCheckIns, profile])
+    return <FeedTab checkIns={myCheckIns} profile={profile} onUpdateCheckIn={handleUpdateCheckIn} />
+  }, [activeTab, badges, handleAddCheckIn, handleSaveProfile, handleSignOut, handleUpdateCheckIn, myCheckIns, profile])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
