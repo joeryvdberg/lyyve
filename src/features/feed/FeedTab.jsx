@@ -45,7 +45,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
     event: item.venue,
     rating: item.rating,
     note: item.note,
-    photoDataUrl: item.photoDataUrl || '',
+    photoDataUrl: item.photoDataUrl || item.photo_url || '',
     createdAt: item.createdAt || '',
     isFriendPost: false,
     friendId: '',
@@ -144,7 +144,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
       venue: item.event ?? '',
       note: item.note ?? '',
       rating: Number(item.rating ?? 8),
-      photoDataUrl: item.photoDataUrl ?? '',
+      photoDataUrl: item.photoDataUrl ?? item.photo_url ?? '',
     })
   }
 
@@ -263,10 +263,10 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
                 </div>
               </div>
             </div>
-            {item.photoDataUrl && (
+            {(item.photoDataUrl || item.photo_url) && (
               <div className="overflow-hidden border-y border-white/10 bg-zinc-950/30">
                 <img
-                  src={item.photoDataUrl}
+                  src={item.photoDataUrl || item.photo_url}
                   alt={`${item.artist} check-in`}
                   className="h-48 w-full object-cover"
                   loading="lazy"

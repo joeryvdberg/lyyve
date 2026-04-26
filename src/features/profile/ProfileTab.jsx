@@ -350,10 +350,10 @@ export default function ProfileTab({
                     </div>
                     <p className="mt-2 text-xs text-zinc-300">{item.note}</p>
                   </div>
-                  {item.photoDataUrl && (
+                  {(item.photoDataUrl || item.photo_url) && (
                     <div className="overflow-hidden border-t border-white/10 bg-zinc-950/40">
                       <img
-                        src={item.photoDataUrl}
+                        src={item.photoDataUrl || item.photo_url}
                         alt={`${item.artist} check-in`}
                         className="h-44 w-full object-cover"
                         loading="lazy"

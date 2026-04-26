@@ -56,6 +56,8 @@ const friendProfiles = [
         rating: 8.9,
         note: 'Bizar goeie energie. Hele tent ging los.',
         createdAt: '2026-08-20T19:10:00Z',
+        photoDataUrl:
+          'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1600&q=70',
       },
       {
         id: 'friend-noa-2',
@@ -82,6 +84,8 @@ const friendProfiles = [
         rating: 8.2,
         note: 'Visueel heel sterk, sound iets te zacht.',
         createdAt: '2026-08-16T20:45:00Z',
+        photoDataUrl:
+          'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1600&q=70',
       },
       {
         id: 'friend-jesse-2',

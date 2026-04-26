@@ -13,7 +13,7 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
       venue: item.venue || '',
       note: item.note || '',
       rating: Number(item.rating ?? 8.0),
-      photoDataUrl: item.photoDataUrl || '',
+      photoDataUrl: item.photoDataUrl || item.photo_url || '',
     })
   }
 
@@ -208,9 +208,9 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
                     </div>
                   </div>
                   {item.note && <p className="mt-2 text-xs text-zinc-300">{item.note}</p>}
-                  {item.photoDataUrl && (
+                  {(item.photoDataUrl || item.photo_url) && (
                     <img
-                      src={item.photoDataUrl}
+                      src={item.photoDataUrl || item.photo_url}
                       alt={`${item.artist} check-in`}
                       className="mt-2 h-24 w-full rounded-lg object-cover"
                     />
