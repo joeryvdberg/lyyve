@@ -268,7 +268,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
                 <img
                   src={item.photoDataUrl || item.photo_url}
                   alt={`${item.artist} check-in`}
-                  className="h-48 w-full object-cover"
+                  className="max-h-[28rem] w-full object-contain bg-zinc-950/70"
                   loading="lazy"
                 />
               </div>

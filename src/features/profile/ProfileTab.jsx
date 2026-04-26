@@ -26,6 +26,10 @@ export default function ProfileTab({
   const [isEditing, setIsEditing] = useState(false)
   const [selectedFriendId, setSelectedFriendId] = useState('')
   const [relationView, setRelationView] = useState('')
+  const [friendStatsView, setFriendStatsView] = useState('')
+  const [friendSearchQuery, setFriendSearchQuery] = useState('')
+  const [relationSearchQuery, setRelationSearchQuery] = useState('')
+  const [followingIds, setFollowingIds] = useState([])
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
@@ -38,8 +42,16 @@ export default function ProfileTab({
   const initials = avatarInitials(form.displayName)
   const selectedFriend = friends.find((friend) => friend.id === selectedFriendId) ?? null
   const followers = friends
-  const following = friends
+  const following = friends.filter((friend) => followingIds.includes(friend.id))
   const unlockedBadges = useMemo(() => badges.filter((badge) => badge.unlocked), [badges])
+  const friendSearchResults = useMemo(() => {
+    const query = friendSearchQuery.trim().toLowerCase()
+    if (!query) return friends
+    return friends.filter(
+      (friend) =>
+        friend.displayName.toLowerCase().includes(query) || friend.username.toLowerCase().includes(query)
+    )
+  }, [friendSearchQuery, friends])
 
   const friendStats = useMemo(() => {
     if (!selectedFriend) return null
@@ -55,6 +67,18 @@ export default function ProfileTab({
   const selectedFriendBadges = useMemo(() => {
     if (!selectedFriend) return []
     return evaluateBadges(selectedFriend.checkIns ?? [], [])
+  }, [selectedFriend])
+  const selectedFriendArtists = useMemo(() => {
+    if (!selectedFriend) return []
+    return Array.from(new Set((selectedFriend.checkIns ?? []).map((item) => item.artist))).sort((a, b) =>
+      a.localeCompare(b)
+    )
+  }, [selectedFriend])
+  const selectedFriendPlaces = useMemo(() => {
+    if (!selectedFriend) return []
+    return Array.from(new Set((selectedFriend.checkIns ?? []).map((item) => item.venue))).sort((a, b) =>
+      a.localeCompare(b)
+    )
   }, [selectedFriend])
 
   const getBadgeEmoji = (badgeId) => {
@@ -80,6 +104,33 @@ export default function ProfileTab({
   useEffect(() => {
     setSelectedFriendId(externalSelectedFriendId || '')
   }, [externalSelectedFriendId])
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('lyyve-following-ids')
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) {
+          setFollowingIds(parsed)
+          return
+        }
+      } catch {
+        // Ignore malformed local data and use defaults.
+      }
+    }
+    setFollowingIds(friends.map((friend) => friend.id))
+  }, [friends])
+
+  useEffect(() => {
+    if (!followingIds.length) return
+    window.localStorage.setItem('lyyve-following-ids', JSON.stringify(followingIds))
+  }, [followingIds])
+
+  function toggleFollow(friendId) {
+    setFollowingIds((prev) =>
+      prev.includes(friendId) ? prev.filter((id) => id !== friendId) : [...prev, friendId]
+    )
+  }
 
   function getInteraction(itemId) {
     return interactions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
@@ -266,6 +317,7 @@ export default function ProfileTab({
 
   if (selectedFriend && friendStats) {
     const unlockedFriendBadges = selectedFriendBadges.filter((badge) => badge.unlocked)
+    const isFollowingSelectedFriend = followingIds.includes(selectedFriend.id)
     return (
       <section className="space-y-4">
         <article className="rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
@@ -285,6 +337,17 @@ export default function ProfileTab({
           </h2>
           <p className="mt-1 text-sm text-zinc-400">@{selectedFriend.username}</p>
           <p className="mt-3 text-sm text-zinc-300">{selectedFriend.bio}</p>
+          <button
+            type="button"
+            onClick={() => toggleFollow(selectedFriend.id)}
+            className={`mt-3 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+              isFollowingSelectedFriend
+                ? 'border-white/20 bg-zinc-950/60 text-zinc-200 hover:border-white/35'
+                : 'border-cyan-300/40 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/60'
+            }`}
+          >
+            {isFollowingSelectedFriend ? 'Volgend' : 'Volgen'}
+          </button>
 
           {unlockedFriendBadges.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -303,22 +366,38 @@ export default function ProfileTab({
 
         <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
           <div className="grid grid-cols-4 gap-2">
-            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+            <button
+              type="button"
+              onClick={() => setFriendStatsView('checkins')}
+              className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center hover:border-white/20"
+            >
               <p className="text-sm font-semibold text-white">{friendStats.total}</p>
               <p className="text-[11px] text-zinc-400">Check-ins</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+            </button>
+            <button
+              type="button"
+              onClick={() => setFriendStatsView('artists')}
+              className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center hover:border-white/20"
+            >
               <p className="text-sm font-semibold text-white">{friendStats.uniqueArtists}</p>
               <p className="text-[11px] text-zinc-400">Artiesten</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+            </button>
+            <button
+              type="button"
+              onClick={() => setFriendStatsView('places')}
+              className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center hover:border-white/20"
+            >
               <p className="text-sm font-semibold text-white">{friendStats.uniquePlaces}</p>
               <p className="text-[11px] text-zinc-400">Plekken</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
+            </button>
+            <button
+              type="button"
+              onClick={() => setFriendStatsView('ratings')}
+              className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center hover:border-white/20"
+            >
               <p className="text-sm font-semibold text-rose-300">{friendStats.average}</p>
               <p className="text-[11px] text-zinc-400">Gemiddeld</p>
-            </div>
+            </button>
           </div>
         </article>
 
@@ -355,7 +434,7 @@ export default function ProfileTab({
                       <img
                         src={item.photoDataUrl || item.photo_url}
                         alt={`${item.artist} check-in`}
-                        className="h-44 w-full object-cover"
+                        className="max-h-[28rem] w-full object-contain bg-zinc-950/70"
                         loading="lazy"
                       />
                     </div>
@@ -440,6 +519,64 @@ export default function ProfileTab({
             )}
           </div>
         </article>
+
+        {friendStatsView && (
+          <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/55 p-4 backdrop-blur-sm">
+            <article className="flex max-h-[78svh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/95 shadow-2xl shadow-fuchsia-500/20">
+              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                <h3 className="text-lg font-semibold text-white">
+                  {friendStatsView === 'checkins'
+                    ? 'Check-ins'
+                    : friendStatsView === 'artists'
+                      ? 'Artiesten'
+                      : friendStatsView === 'places'
+                        ? 'Plekken'
+                        : 'Ratings'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setFriendStatsView('')}
+                  className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
+                >
+                  Sluiten
+                </button>
+              </div>
+              <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                {friendStatsView === 'checkins' &&
+                  (selectedFriend.checkIns ?? []).map((item) => (
+                    <div key={`fs-checkin-${item.id}`} className="rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2">
+                      <p className="text-sm font-semibold text-white">{item.artist}</p>
+                      <p className="text-xs text-zinc-400">{item.venue}</p>
+                    </div>
+                  ))}
+                {friendStatsView === 'artists' &&
+                  selectedFriendArtists.map((artist) => (
+                    <div key={`fs-artist-${artist}`} className="rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2">
+                      <p className="text-sm font-semibold text-white">{artist}</p>
+                    </div>
+                  ))}
+                {friendStatsView === 'places' &&
+                  selectedFriendPlaces.map((place) => (
+                    <div key={`fs-place-${place}`} className="rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2">
+                      <p className="text-sm font-semibold text-white">{place}</p>
+                    </div>
+                  ))}
+                {friendStatsView === 'ratings' &&
+                  (selectedFriend.checkIns ?? []).map((item) => (
+                    <div
+                      key={`fs-rating-${item.id}`}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2"
+                    >
+                      <p className="text-sm font-semibold text-white">{item.artist}</p>
+                      <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-semibold text-rose-300">
+                        {item.rating.toFixed(1)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </article>
+          </div>
+        )}
       </section>
     )
   }
@@ -523,6 +660,49 @@ export default function ProfileTab({
           </button>
         </div>
         <p className="text-xs text-zinc-500">Klik op Volgers, Volgend of Check-ins om te openen.</p>
+      </article>
+
+      <article className="rounded-3xl border border-cyan-300/20 bg-zinc-900/65 p-4 shadow-lg shadow-cyan-500/10 backdrop-blur-xl">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-white">Vrienden zoeken</h3>
+          <p className="text-xs text-zinc-400">{friendSearchResults.length} resultaten</p>
+        </div>
+        <input
+          value={friendSearchQuery}
+          onChange={(event) => setFriendSearchQuery(event.target.value)}
+          placeholder="Zoek op naam of @username"
+          className="w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+        />
+        <div className="mt-3 max-h-52 space-y-2 overflow-y-auto pr-1">
+          {friendSearchResults.map((friend) => {
+            const isFollowingFriend = followingIds.includes(friend.id)
+            return (
+              <div
+                key={`search-friend-${friend.id}`}
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2"
+              >
+                <button type="button" onClick={() => setSelectedFriendId(friend.id)} className="text-left">
+                  <p className="text-sm font-semibold text-white">{friend.displayName}</p>
+                  <p className="text-xs text-zinc-400">@{friend.username}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleFollow(friend.id)}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${
+                    isFollowingFriend
+                      ? 'border-white/20 text-zinc-300 hover:border-white/35'
+                      : 'border-cyan-300/40 text-cyan-200 hover:border-cyan-300/60'
+                  }`}
+                >
+                  {isFollowingFriend ? 'Volgend' : 'Volgen'}
+                </button>
+              </div>
+            )
+          })}
+          {friendSearchResults.length === 0 && (
+            <p className="text-xs text-zinc-500">Geen vrienden gevonden voor deze zoekterm.</p>
+          )}
+        </div>
       </article>
 
       <article className="rounded-3xl border border-cyan-300/20 bg-zinc-900/65 p-4 shadow-lg shadow-cyan-500/10 backdrop-blur-xl">
@@ -750,6 +930,14 @@ export default function ProfileTab({
               </button>
             </div>
             <div className="flex-1 space-y-2 overflow-y-auto p-4">
+              {(relationView === 'followers' || relationView === 'following') && (
+                <input
+                  value={relationSearchQuery}
+                  onChange={(event) => setRelationSearchQuery(event.target.value)}
+                  placeholder="Zoek vriend..."
+                  className="mb-2 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                />
+              )}
               {relationView === 'checkins'
                 ? checkIns.map((item) => (
                     <div
@@ -760,7 +948,16 @@ export default function ProfileTab({
                       <p className="text-xs text-zinc-400">{item.venue}</p>
                     </div>
                   ))
-                : (relationView === 'followers' ? followers : following).map((person) => (
+                : (relationView === 'followers' ? followers : following)
+                    .filter((person) => {
+                      const query = relationSearchQuery.trim().toLowerCase()
+                      if (!query) return true
+                      return (
+                        person.displayName.toLowerCase().includes(query) ||
+                        person.username.toLowerCase().includes(query)
+                      )
+                    })
+                    .map((person) => (
                     <button
                       key={`${relationView}-${person.id}`}
                       type="button"
