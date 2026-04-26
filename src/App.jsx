@@ -111,6 +111,7 @@ function avatarInitials(displayName = '') {
 
 function App() {
   const [activeTab, setActiveTab] = useState('feed')
+  const [focusedFriendId, setFocusedFriendId] = useState('')
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
   const [profile, setProfile] = useState(defaultProfile)
   const [badges, setBadges] = useState([])
@@ -394,6 +395,11 @@ function App() {
     }
   }, [])
 
+  const handleOpenProfileFromFeed = useCallback((friendId = '') => {
+    setFocusedFriendId(friendId)
+    setActiveTab('profile')
+  }, [])
+
   const activeView = useMemo(() => {
     if (activeTab === 'checkin') {
       return <CheckInTab onAddCheckIn={handleAddCheckIn} />
@@ -417,12 +423,20 @@ function App() {
           friends={friendProfiles}
           checkIns={myCheckIns}
           badges={badges}
+          externalSelectedFriendId={focusedFriendId}
         />
       )
     }
 
-    return <FeedTab checkIns={myCheckIns} profile={profile} onUpdateCheckIn={handleUpdateCheckIn} />
-  }, [activeTab, badges, handleAddCheckIn, handleSaveProfile, handleSignOut, handleUpdateCheckIn, myCheckIns, profile])
+    return (
+      <FeedTab
+        checkIns={myCheckIns}
+        profile={profile}
+        onUpdateCheckIn={handleUpdateCheckIn}
+        onOpenProfile={handleOpenProfileFromFeed}
+      />
+    )
+  }, [activeTab, badges, focusedFriendId, handleAddCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleUpdateCheckIn, myCheckIns, profile])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
@@ -448,7 +462,10 @@ function App() {
           <img src={`${ASSET_BASE}lyyve-logo-white-blue.png`} alt="Lyyve logo" className="mx-auto h-auto w-40" />
           <button
             type="button"
-            onClick={() => setActiveTab('profile')}
+            onClick={() => {
+              setFocusedFriendId('')
+              setActiveTab('profile')
+            }}
             className={`grid h-11 w-11 place-items-center overflow-hidden rounded-full border bg-zinc-900/70 text-xs font-semibold backdrop-blur ${
               activeTab === 'profile'
                 ? 'border-sky-300/60 shadow-lg shadow-sky-500/20'

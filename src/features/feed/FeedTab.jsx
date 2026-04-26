@@ -5,6 +5,7 @@ import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
 const friendFeedItems = [
   {
     id: 'friend-feed-noa-1',
+    friendId: 'friend-noa',
     user: 'Noa',
     artist: 'Fred again..',
     event: 'Lowlands 2026',
@@ -16,6 +17,7 @@ const friendFeedItems = [
   },
   {
     id: 'friend-feed-jesse-1',
+    friendId: 'friend-jesse',
     user: 'Jesse',
     artist: 'The Blaze',
     event: 'Pukkelpop 2026',
@@ -27,7 +29,7 @@ const friendFeedItems = [
   },
 ]
 
-export default function FeedTab({ checkIns, profile, onUpdateCheckIn }) {
+export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onOpenProfile }) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
@@ -45,6 +47,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn }) {
     photoDataUrl: item.photoDataUrl || '',
     createdAt: item.createdAt || '',
     isFriendPost: false,
+    friendId: '',
   }))
 
   const feedItems = [...myFeedItems, ...friendFeedItems.map((item) => ({ ...item, isFriendPost: true }))]
@@ -175,7 +178,14 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn }) {
                 <div>
                   <p className="text-xs uppercase tracking-wide text-zinc-500">{formatTime(item.createdAt)}</p>
                   <p className="mt-1 text-sm text-zinc-300">
-                    <span className="font-semibold text-white">{item.user}</span> zag{' '}
+                    <button
+                      type="button"
+                      onClick={() => onOpenProfile?.(item.friendId || '')}
+                      className="font-semibold text-white underline-offset-2 hover:underline"
+                    >
+                      {item.user}
+                    </button>{' '}
+                    zag{' '}
                     <span className="font-semibold text-white">{item.artist}</span>
                   </p>
                   <p className="mt-1 text-xs text-zinc-400">{item.event}</p>

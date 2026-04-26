@@ -18,6 +18,7 @@ export default function ProfileTab({
   friends = [],
   checkIns = [],
   badges = [],
+  externalSelectedFriendId = '',
 }) {
   const [form, setForm] = useState(profile)
   const [saveState, setSaveState] = useState('idle')
@@ -70,6 +71,10 @@ export default function ProfileTab({
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    setSelectedFriendId(externalSelectedFriendId || '')
+  }, [externalSelectedFriendId])
 
   function getInteraction(itemId) {
     return interactions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }

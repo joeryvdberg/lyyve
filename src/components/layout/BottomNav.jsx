@@ -66,7 +66,7 @@ function MenuIcon({ tabId }) {
 
 export default function BottomNav({ activeTab, onChange }) {
   return (
-    <nav className="fixed inset-x-0 bottom-4 z-20 mx-auto w-[calc(100%-1rem)] max-w-md rounded-3xl border border-white/15 bg-zinc-900/55 px-2 py-2 shadow-2xl shadow-fuchsia-900/25 backdrop-blur-2xl">
+    <nav className="fixed inset-x-0 bottom-6 z-20 mx-auto w-[calc(100%-1rem)] max-w-md rounded-3xl border border-white/15 bg-zinc-900/55 px-2 py-2 shadow-2xl shadow-fuchsia-900/25 backdrop-blur-2xl">
       <ul className="grid grid-cols-4 gap-1">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTab
