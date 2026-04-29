@@ -1,4 +1,4 @@
-[ ] Bevestig auth redirect configuratie in Supabase.
+[x] Bevestig auth redirect configuratie in Supabase. (2026-04-28)
     - Zet Authentication -> URL Configuration -> Site URL op: https://joeryvdberg.github.io/lyyve/
     - Voeg Additional Redirect URLs toe:
       - https://joeryvdberg.github.io/lyyve/
@@ -33,7 +33,7 @@
     - Voeg resend confirmation actie toe.
 
 [ ] Implementeer social auth roadmap (gefaseerd).
-    - [Google] Monitor live flow en foutpercentages.
+    - [Google] Monitor live flow en foutpercentages. (live ok 2026-04-29)
     - [Facebook] Hervat setup zodra Meta app-flow zonder blockers rond is.
     - [Apple] Hervat na Apple Developer Program enrollment.
 
