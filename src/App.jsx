@@ -128,6 +128,7 @@ function App() {
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
   const [socialFeedItems, setSocialFeedItems] = useState([])
   const [socialFriends, setSocialFriends] = useState(friendProfiles)
+  const [followingIds, setFollowingIds] = useState([])
   const [profile, setProfile] = useState(defaultProfile)
   const [badges, setBadges] = useState([])
   const [session, setSession] = useState(null)
@@ -225,6 +226,53 @@ function App() {
   useEffect(() => {
     let mounted = true
 
+    async function loadFollowing() {
+      if (hasSupabaseConfig && supabase && session?.user?.id) {
+        const { data, error } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', session.user.id)
+
+        if (!mounted) return
+        if (error) {
+          setFollowingIds([])
+          return
+        }
+        setFollowingIds((data ?? []).map((row) => row.following_id).filter(Boolean))
+        return
+      }
+
+      const stored =
+        typeof window !== 'undefined' ? window.localStorage.getItem('lyyve-following-ids') : null
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            setFollowingIds(parsed)
+            return
+          }
+        } catch {
+          // Ignore malformed local data and use defaults.
+        }
+      }
+      setFollowingIds(friendProfiles.map((friend) => friend.id))
+    }
+
+    loadFollowing()
+    return () => {
+      mounted = false
+    }
+  }, [session?.user?.id])
+
+  useEffect(() => {
+    if (hasSupabaseConfig && supabase && session?.user?.id) return
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('lyyve-following-ids', JSON.stringify(followingIds))
+  }, [followingIds, session?.user?.id])
+
+  useEffect(() => {
+    let mounted = true
+
     async function loadSocialFeed() {
       if (!(hasSupabaseConfig && supabase && session?.user?.id)) {
         const localMyFeedItems = myCheckIns.map((item) => ({
@@ -265,9 +313,11 @@ function App() {
         return
       }
 
+      const visibleUserIds = [session.user.id, ...followingIds]
       const { data: feedRows, error: feedError } = await supabase
         .from('check_ins')
         .select('id, user_id, artist, venue, note, rating, created_at, photo_url, city, country')
+        .in('user_id', visibleUserIds)
         .order('created_at', { ascending: false })
         .limit(120)
 
@@ -277,6 +327,14 @@ function App() {
         setSocialFriends([])
         return
       }
+
+      const { data: directoryRows } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, bio, avatar_url, city, favorite_genres, favorite_artists')
+        .neq('id', session.user.id)
+        .limit(200)
+
+      if (!mounted) return
 
       const userIds = [...new Set(feedRows.map((row) => row.user_id).filter(Boolean))]
       let profilesById = {}
@@ -309,7 +367,20 @@ function App() {
         }
       })
 
-      const friendMap = {}
+      const friendMap = Object.fromEntries(
+        (directoryRows ?? []).map((row) => [
+          row.id,
+          {
+            id: row.id,
+            username: row.username || `user-${String(row.id).slice(0, 8)}`,
+            displayName: row.display_name || row.username || 'Gebruiker',
+            bio: row.bio || '',
+            avatarUrl: row.avatar_url || '',
+            city: row.city || '',
+            checkIns: [],
+          },
+        ])
+      )
       for (const row of feedRows) {
         if (!row.user_id || row.user_id === session.user.id) continue
         const linkedProfile = profilesById[row.user_id] ?? null
@@ -345,7 +416,7 @@ function App() {
     return () => {
       mounted = false
     }
-  }, [myCheckIns, profile.displayName, profile.username, session?.user?.id])
+  }, [followingIds, myCheckIns, profile.displayName, profile.username, session?.user?.id])
 
   useEffect(() => {
     let mounted = true
@@ -575,6 +646,38 @@ function App() {
     setActiveTab('profile')
   }, [])
 
+  const handleDiscoverPeople = useCallback(() => {
+    setFocusedFriendId('')
+    setActiveTab('profile')
+  }, [])
+
+  const handleToggleFollow = useCallback(
+    async (friendId) => {
+      if (!friendId) return
+
+      const isFollowing = followingIds.includes(friendId)
+      setFollowingIds((prev) =>
+        isFollowing ? prev.filter((id) => id !== friendId) : [...prev, friendId]
+      )
+
+      if (hasSupabaseConfig && supabase && session?.user?.id) {
+        if (isFollowing) {
+          await supabase
+            .from('follows')
+            .delete()
+            .eq('follower_id', session.user.id)
+            .eq('following_id', friendId)
+        } else {
+          await supabase.from('follows').insert({
+            follower_id: session.user.id,
+            following_id: friendId,
+          })
+        }
+      }
+    },
+    [followingIds, session?.user?.id]
+  )
+
   const activeView = useMemo(() => {
     if (activeTab === 'checkin') {
       return <CheckInTab onAddCheckIn={handleAddCheckIn} />
@@ -602,6 +705,8 @@ function App() {
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
           friends={socialFriends}
+          followingIdsExternal={followingIds}
+          onToggleFollow={handleToggleFollow}
           checkIns={myCheckIns}
           badges={badges}
           externalSelectedFriendId={focusedFriendId}
@@ -618,9 +723,10 @@ function App() {
         onUpdateCheckIn={handleUpdateCheckIn}
         onDeleteCheckIn={handleDeleteCheckIn}
         onOpenProfile={handleOpenProfileFromFeed}
+        onDiscoverPeople={handleDiscoverPeople}
       />
     )
-  }, [activeTab, badges, focusedFriendId, handleAddCheckIn, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleUpdateCheckIn, myCheckIns, profile, socialFeedItems, socialFriends])
+  }, [activeTab, badges, focusedFriendId, followingIds, handleAddCheckIn, handleDeleteCheckIn, handleDiscoverPeople, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, socialFeedItems, socialFriends])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone

@@ -17,6 +17,8 @@ export default function ProfileTab({
   onSaveProfile,
   onSignOut,
   friends = [],
+  followingIdsExternal = [],
+  onToggleFollow,
   checkIns = [],
   badges = [],
   externalSelectedFriendId = '',
@@ -29,7 +31,7 @@ export default function ProfileTab({
   const [friendStatsView, setFriendStatsView] = useState('')
   const [friendSearchQuery, setFriendSearchQuery] = useState('')
   const [relationSearchQuery, setRelationSearchQuery] = useState('')
-  const [followingIds, setFollowingIds] = useState([])
+  const [followingIds, setFollowingIds] = useState(followingIdsExternal)
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
@@ -106,6 +108,11 @@ export default function ProfileTab({
   }, [externalSelectedFriendId])
 
   useEffect(() => {
+    setFollowingIds(followingIdsExternal)
+  }, [followingIdsExternal])
+
+  useEffect(() => {
+    if (onToggleFollow) return
     const stored = window.localStorage.getItem('lyyve-following-ids')
     if (stored) {
       try {
@@ -119,14 +126,19 @@ export default function ProfileTab({
       }
     }
     setFollowingIds(friends.map((friend) => friend.id))
-  }, [friends])
+  }, [friends, onToggleFollow])
 
   useEffect(() => {
+    if (onToggleFollow) return
     if (!followingIds.length) return
     window.localStorage.setItem('lyyve-following-ids', JSON.stringify(followingIds))
-  }, [followingIds])
+  }, [followingIds, onToggleFollow])
 
   function toggleFollow(friendId) {
+    if (onToggleFollow) {
+      onToggleFollow(friendId)
+      return
+    }
     setFollowingIds((prev) =>
       prev.includes(friendId) ? prev.filter((id) => id !== friendId) : [...prev, friendId]
     )
