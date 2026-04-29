@@ -11,6 +11,13 @@ function validatePassword(value) {
   return { valid, minLength, hasLower, hasUpper, hasNumber, hasSpecial }
 }
 
+function getAuthRedirectUrl() {
+  const fallbackPath = import.meta.env.BASE_URL && import.meta.env.BASE_URL !== './'
+    ? import.meta.env.BASE_URL
+    : window.location.pathname
+  return new URL(fallbackPath, window.location.origin).toString()
+}
+
 export default function AuthScreen({ forceReset = false }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -28,7 +35,7 @@ export default function AuthScreen({ forceReset = false }) {
     setMessage('')
     setPasswordError('')
     try {
-      const redirectTo = window.location.origin + import.meta.env.BASE_URL
+      const redirectTo = getAuthRedirectUrl()
       if (mode === 'signup' || mode === 'reset') {
         const ruleCheck = validatePassword(password)
         if (!ruleCheck.valid) {
@@ -84,7 +91,7 @@ export default function AuthScreen({ forceReset = false }) {
     setLoading(true)
     setMessage('')
     try {
-      const redirectTo = window.location.origin + import.meta.env.BASE_URL
+      const redirectTo = getAuthRedirectUrl()
       const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, { redirectTo })
       if (error) throw error
       setMessage('Resetmail verstuurd. Open de link in je mail om een nieuw wachtwoord in te stellen.')
@@ -101,7 +108,7 @@ export default function AuthScreen({ forceReset = false }) {
     setLoading(true)
     setMessage('')
     try {
-      const redirectTo = window.location.origin + import.meta.env.BASE_URL
+      const redirectTo = getAuthRedirectUrl()
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo },
