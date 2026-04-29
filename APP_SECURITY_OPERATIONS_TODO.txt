@@ -4,16 +4,16 @@
       - https://joeryvdberg.github.io/lyyve/
       - http://localhost:5175/
 
-[ ] Verifieer account-isolatie end-to-end.
-    - Test in normale browser met account A.
-    - Test in incognito met account B.
-    - Controleer dat check-ins/profieldata niet kruisen.
-    - Controleer dat uitloggen altijd teruggaat naar auth-scherm.
+[x] Verifieer account-isolatie end-to-end. (2026-04-29)
+    - Test in normale browser met account A. (ok 2026-04-29)
+    - Test in incognito met account B. (ok 2026-04-29)
+    - Controleer social read + own write: feed is gedeeld, mutaties blijven account-gebonden. (ok 2026-04-29)
+    - Controleer dat uitloggen altijd teruggaat naar auth-scherm. (ok 2026-04-29)
 
-[ ] Rond Supabase database hardening af.
-    - Controleer dat RLS aan staat op profiles en check_ins.
-    - Controleer policies: alleen eigen profiel/check-ins muteren.
-    - Verwijder ongebruikte of te brede policies.
+[x] Rond Supabase database hardening af. (2026-04-29)
+    - Controleer dat RLS aan staat op profiles en check_ins. (ok 2026-04-29)
+    - Controleer policies: alleen eigen profiel/check-ins muteren. (ok 2026-04-29)
+    - Verwijder ongebruikte of te brede policies. (policy set opgeschoond 2026-04-29)
 
 [ ] Draai secret hygiene en key-rotatie.
     - Roteer eerder gedeelde Supabase secret key (sb_secret_...).
@@ -28,9 +28,9 @@
     - Test signup/confirm/reset mails op deliverability.
 
 [ ] Verbeter auth UX en foutafhandeling.
-    - Voeg duidelijke states toe voor "mail verzonden", "token verlopen", "link al gebruikt".
+    - Voeg duidelijke states toe voor "mail verzonden", "token verlopen", "link al gebruikt". (grotendeels ok 2026-04-29)
     - Voeg rate-limit en lockout messaging toe op login failures.
-    - Voeg resend confirmation actie toe.
+    - Voeg resend confirmation actie toe. (ok 2026-04-29)
 
 [ ] Implementeer social auth roadmap (gefaseerd).
     - [Google] Monitor live flow en foutpercentages. (live ok 2026-04-29)
