@@ -651,11 +651,6 @@ function App() {
     setActiveTab('profile')
   }, [])
 
-  const handleDiscoverPeople = useCallback(() => {
-    setFocusedFriendId('')
-    setActiveTab('profile')
-  }, [])
-
   const handleToggleFollow = useCallback(
     async (friendId) => {
       if (!friendId) return
@@ -699,7 +694,16 @@ function App() {
     }
 
     if (activeTab === 'explore') {
-      return <ExploreTab checkIns={myCheckIns} profile={profile} />
+      return (
+        <ExploreTab
+          checkIns={myCheckIns}
+          profile={profile}
+          friends={socialFriends}
+          followingIds={followingIds}
+          onToggleFollow={handleToggleFollow}
+          onOpenProfile={handleOpenProfileFromFeed}
+        />
+      )
     }
 
     if (activeTab === 'profile') {
@@ -729,10 +733,9 @@ function App() {
         onUpdateCheckIn={handleUpdateCheckIn}
         onDeleteCheckIn={handleDeleteCheckIn}
         onOpenProfile={handleOpenProfileFromFeed}
-        onDiscoverPeople={handleDiscoverPeople}
       />
     )
-  }, [activeTab, badges, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteCheckIn, handleDiscoverPeople, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, socialFeedItems, socialFriends])
+  }, [activeTab, badges, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, socialFeedItems, socialFriends])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone

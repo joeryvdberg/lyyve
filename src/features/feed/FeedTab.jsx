@@ -11,7 +11,6 @@ export default function FeedTab({
   onUpdateCheckIn,
   onDeleteCheckIn,
   onOpenProfile,
-  onDiscoverPeople,
 }) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
@@ -253,13 +252,6 @@ export default function FeedTab({
       <p className="text-sm text-zinc-400">
         Hier zie je check-ins van vrienden: welke artiest ze zagen, hun score en opmerking.
       </p>
-      <button
-        type="button"
-        onClick={() => onDiscoverPeople?.()}
-        className="w-full rounded-2xl border border-cyan-300/35 bg-cyan-500/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/55 hover:bg-cyan-500/20"
-      >
-        Gebruikers zoeken & volgen
-      </button>
       <div className="space-y-3">
         {renderedFeedItems.map((item, index) => (
           <article

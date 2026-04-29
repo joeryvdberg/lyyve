@@ -230,7 +230,14 @@ function mergeByName(primary, secondary) {
   return [...map.values()]
 }
 
-export default function ExploreTab({ checkIns, profile }) {
+export default function ExploreTab({
+  checkIns,
+  profile,
+  friends = [],
+  followingIds = [],
+  onToggleFollow,
+  onOpenProfile,
+}) {
   const datasetBase = import.meta.env.BASE_URL
   const [mode, setMode] = useState('artist')
   const [query, setQuery] = useState('')
@@ -280,9 +287,20 @@ export default function ExploreTab({ checkIns, profile }) {
     }
   }, [datasetBase])
 
-  const pool = mode === 'artist' ? artists : venues
+  const pool = mode === 'artist' ? artists : mode === 'venue' ? venues : []
 
   const normalizedQuery = normalizeText(query)
+  const rankedPeople = useMemo(() => {
+    const source = [...friends]
+    if (!normalizedQuery) return source.slice(0, 20)
+    return source
+      .filter((friend) => {
+        const displayName = normalizeText(friend.displayName || '')
+        const username = normalizeText(friend.username || '')
+        return displayName.includes(normalizedQuery) || username.includes(normalizedQuery)
+      })
+      .slice(0, 30)
+  }, [friends, normalizedQuery])
 
   const rankedItems = useMemo(() => {
     const source = [...pool].filter((item) => isRecognizableName(getName(item)))
@@ -456,7 +474,7 @@ export default function ExploreTab({ checkIns, profile }) {
         Ontdekken<span className="text-cyan-300">.</span>
       </h2>
 
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-zinc-900/65 p-1 backdrop-blur-xl">
+      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-zinc-900/65 p-1 backdrop-blur-xl">
         <button
           type="button"
           onClick={() => {
@@ -485,42 +503,101 @@ export default function ExploreTab({ checkIns, profile }) {
         >
           Venues/Festivals
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('people')
+            setSelectedName('')
+          }}
+          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+            mode === 'people'
+              ? 'bg-gradient-to-r from-rose-500/30 via-fuchsia-500/30 to-sky-500/30 text-white'
+              : 'text-zinc-300'
+          }`}
+        >
+          Gebruikers
+        </button>
       </div>
 
       <label className="block text-sm text-zinc-300">
-        Zoek {mode === 'artist' ? 'artiest' : 'venue/festival'}
+        Zoek {mode === 'artist' ? 'artiest' : mode === 'venue' ? 'venue/festival' : 'gebruiker'}
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-          placeholder={mode === 'artist' ? 'Bijv. Fred again..' : 'Bijv. Lowlands'}
+          placeholder={
+            mode === 'artist' ? 'Bijv. Fred again..' : mode === 'venue' ? 'Bijv. Lowlands' : 'Bijv. Noa of @noalive'
+          }
         />
       </label>
 
-      <div className="rounded-3xl border border-fuchsia-400/20 bg-zinc-900/65 p-3 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
-        <p className="mb-2 text-sm text-zinc-300">Klik voor details:</p>
-        <div className="flex flex-wrap gap-2">
-          {rankedItems.length === 0 && (
-            <span className="text-xs text-zinc-500">Geen resultaten gevonden.</span>
-          )}
-          {rankedItems.map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => setSelectedName(name)}
-              className={`rounded-full border px-3 py-1 text-xs transition ${
-                selectedName === name
-                  ? 'border-sky-400/70 bg-sky-500/20 text-sky-200'
-                  : 'border-white/10 bg-zinc-950 text-zinc-300 hover:border-white/20'
-              }`}
-            >
-              {name}
-            </button>
-          ))}
+      {mode === 'people' ? (
+        <article className="rounded-3xl border border-cyan-300/20 bg-zinc-900/65 p-4 shadow-lg shadow-cyan-500/10 backdrop-blur-xl">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-base font-semibold text-white">Gebruikers zoeken</h3>
+            <p className="text-xs text-zinc-400">{rankedPeople.length} resultaten</p>
+          </div>
+          <div className="space-y-2">
+            {rankedPeople.map((friend) => {
+              const isFollowing = followingIds.includes(friend.id)
+              return (
+                <div
+                  key={`explore-user-${friend.id}`}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onOpenProfile?.(friend.id)}
+                    className="text-left"
+                  >
+                    <p className="text-sm font-semibold text-white">{friend.displayName}</p>
+                    <p className="text-xs text-zinc-400">@{friend.username}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onToggleFollow?.(friend.id)}
+                    className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${
+                      isFollowing
+                        ? 'border-white/20 text-zinc-300 hover:border-white/35'
+                        : 'border-cyan-300/40 text-cyan-200 hover:border-cyan-300/60'
+                    }`}
+                  >
+                    {isFollowing ? 'Volgend' : 'Volgen'}
+                  </button>
+                </div>
+              )
+            })}
+            {rankedPeople.length === 0 && (
+              <p className="text-xs text-zinc-500">Geen gebruikers gevonden voor deze zoekterm.</p>
+            )}
+          </div>
+        </article>
+      ) : (
+        <div className="rounded-3xl border border-fuchsia-400/20 bg-zinc-900/65 p-3 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
+          <p className="mb-2 text-sm text-zinc-300">Klik voor details:</p>
+          <div className="flex flex-wrap gap-2">
+            {rankedItems.length === 0 && (
+              <span className="text-xs text-zinc-500">Geen resultaten gevonden.</span>
+            )}
+            {rankedItems.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setSelectedName(name)}
+                className={`rounded-full border px-3 py-1 text-xs transition ${
+                  selectedName === name
+                    ? 'border-sky-400/70 bg-sky-500/20 text-sky-200'
+                    : 'border-white/10 bg-zinc-950 text-zinc-300 hover:border-white/20'
+                }`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {selectedName && (
+      {mode !== 'people' && selectedName && (
         <article className="rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-xl shadow-sky-500/10 backdrop-blur-xl">
           <h3 className="text-lg font-semibold text-white">{selectedName}</h3>
           {catalogEntry?.source && (
@@ -545,6 +622,7 @@ export default function ExploreTab({ checkIns, profile }) {
         </article>
       )}
 
+      {mode !== 'people' && (
       <article className="rounded-3xl border border-emerald-300/20 bg-zinc-900/65 p-4 shadow-xl shadow-emerald-500/10 backdrop-blur-xl">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-lg font-semibold text-white">
@@ -614,6 +692,7 @@ export default function ExploreTab({ checkIns, profile }) {
           )}
         </div>
       </article>
+      )}
     </section>
   )
 }
