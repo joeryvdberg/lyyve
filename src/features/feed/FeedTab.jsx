@@ -1,8 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useEffect } from 'react'
 import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
+import { hasSupabaseConfig, supabase } from '../../lib/supabase'
 
-export default function FeedTab({ checkIns, profile, feedItems = [], onUpdateCheckIn, onDeleteCheckIn, onOpenProfile }) {
+export default function FeedTab({
+  checkIns,
+  profile,
+  currentUser,
+  feedItems = [],
+  onUpdateCheckIn,
+  onDeleteCheckIn,
+  onOpenProfile,
+}) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
@@ -28,17 +37,80 @@ export default function FeedTab({ checkIns, profile, feedItems = [], onUpdateChe
 
   const defaultInteractions = useMemo(() => ({}), [])
 
+  const hasSupabaseInteractions = Boolean(hasSupabaseConfig && supabase && currentUser?.id)
+  const feedItemIds = useMemo(
+    () => renderedFeedItems.map((item) => item.id).filter(Boolean),
+    [renderedFeedItems]
+  )
+
   useEffect(() => {
     let mounted = true
+
     async function loadInteractions() {
+      if (hasSupabaseInteractions && feedItemIds.length > 0) {
+        const [{ data: likeRows, error: likesError }, { data: commentRows, error: commentsError }] =
+          await Promise.all([
+            supabase.from('check_in_likes').select('check_in_id, user_id').in('check_in_id', feedItemIds),
+            supabase
+              .from('check_in_comments')
+              .select('id, check_in_id, user_id, content, created_at')
+              .in('check_in_id', feedItemIds)
+              .order('created_at', { ascending: true }),
+          ])
+
+        if (!mounted) return
+        if (likesError || commentsError) {
+          setInteractions({})
+          return
+        }
+
+        const commenterIds = [...new Set((commentRows ?? []).map((row) => row.user_id).filter(Boolean))]
+        let profilesById = {}
+        if (commenterIds.length > 0) {
+          const { data: profileRows } = await supabase
+            .from('profiles')
+            .select('id, username, display_name')
+            .in('id', commenterIds)
+
+          if (!mounted) return
+          profilesById = Object.fromEntries((profileRows ?? []).map((row) => [row.id, row]))
+        }
+
+        const next = {}
+        for (const itemId of feedItemIds) {
+          const likesForItem = (likeRows ?? []).filter((row) => row.check_in_id === itemId)
+          const commentsForItem = (commentRows ?? [])
+            .filter((row) => row.check_in_id === itemId)
+            .map((row) => {
+              const commenter = profilesById[row.user_id]
+              return {
+                id: row.id,
+                user: commenter?.display_name || commenter?.username || 'Gebruiker',
+                text: row.content ?? '',
+                createdAt: row.created_at ?? '',
+              }
+            })
+
+          next[itemId] = {
+            likedByMe: likesForItem.some((row) => row.user_id === currentUser.id),
+            likeCount: likesForItem.length,
+            comments: commentsForItem,
+          }
+        }
+
+        setInteractions(next)
+        return
+      }
+
       const stored = await getFeedInteractions()
       if (mounted) setInteractions(stored)
     }
+
     loadInteractions()
     return () => {
       mounted = false
     }
-  }, [])
+  }, [currentUser?.id, feedItemIds, hasSupabaseInteractions])
 
   function getInteraction(itemId) {
     return interactions[itemId] ?? defaultInteractions[itemId] ?? { likedByMe: false, likeCount: 0, comments: [] }
@@ -63,7 +135,15 @@ export default function FeedTab({ checkIns, profile, feedItems = [], onUpdateChe
           likeCount: Math.max(0, current.likeCount + (nextLiked ? 1 : -1)),
         },
       }
-      saveFeedInteraction(itemId, next[itemId])
+      if (hasSupabaseInteractions) {
+        if (nextLiked) {
+          supabase.from('check_in_likes').insert({ check_in_id: itemId, user_id: currentUser.id })
+        } else {
+          supabase.from('check_in_likes').delete().eq('check_in_id', itemId).eq('user_id', currentUser.id)
+        }
+      } else {
+        saveFeedInteraction(itemId, next[itemId])
+      }
       return next
     })
   }
@@ -97,7 +177,15 @@ export default function FeedTab({ checkIns, profile, feedItems = [], onUpdateChe
           ],
         },
       }
-      saveFeedInteraction(itemId, next[itemId])
+      if (hasSupabaseInteractions) {
+        supabase.from('check_in_comments').insert({
+          check_in_id: itemId,
+          user_id: currentUser.id,
+          content: comment,
+        })
+      } else {
+        saveFeedInteraction(itemId, next[itemId])
+      }
       return next
     })
 

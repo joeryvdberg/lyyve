@@ -613,6 +613,7 @@ function App() {
       <FeedTab
         checkIns={myCheckIns}
         profile={profile}
+        currentUser={session?.user ?? null}
         feedItems={socialFeedItems}
         onUpdateCheckIn={handleUpdateCheckIn}
         onDeleteCheckIn={handleDeleteCheckIn}
