@@ -129,6 +129,7 @@ function App() {
   const [socialFeedItems, setSocialFeedItems] = useState([])
   const [socialFriends, setSocialFriends] = useState(friendProfiles)
   const [followingIds, setFollowingIds] = useState([])
+  const [followerIds, setFollowerIds] = useState([])
   const [profile, setProfile] = useState(defaultProfile)
   const [badges, setBadges] = useState([])
   const [session, setSession] = useState(null)
@@ -228,17 +229,20 @@ function App() {
 
     async function loadFollowing() {
       if (hasSupabaseConfig && supabase && session?.user?.id) {
-        const { data, error } = await supabase
-          .from('follows')
-          .select('following_id')
-          .eq('follower_id', session.user.id)
+        const [{ data: followingRows, error: followingError }, { data: followerRows, error: followerError }] =
+          await Promise.all([
+            supabase.from('follows').select('following_id').eq('follower_id', session.user.id),
+            supabase.from('follows').select('follower_id').eq('following_id', session.user.id),
+          ])
 
         if (!mounted) return
-        if (error) {
+        if (followingError || followerError) {
           setFollowingIds([])
+          setFollowerIds([])
           return
         }
-        setFollowingIds((data ?? []).map((row) => row.following_id).filter(Boolean))
+        setFollowingIds((followingRows ?? []).map((row) => row.following_id).filter(Boolean))
+        setFollowerIds((followerRows ?? []).map((row) => row.follower_id).filter(Boolean))
         return
       }
 
@@ -256,6 +260,7 @@ function App() {
         }
       }
       setFollowingIds(friendProfiles.map((friend) => friend.id))
+      setFollowerIds(friendProfiles.map((friend) => friend.id))
     }
 
     loadFollowing()
@@ -706,6 +711,7 @@ function App() {
           onSignOut={handleSignOut}
           friends={socialFriends}
           followingIdsExternal={followingIds}
+          followerIdsExternal={followerIds}
           onToggleFollow={handleToggleFollow}
           checkIns={myCheckIns}
           badges={badges}
@@ -726,7 +732,7 @@ function App() {
         onDiscoverPeople={handleDiscoverPeople}
       />
     )
-  }, [activeTab, badges, focusedFriendId, followingIds, handleAddCheckIn, handleDeleteCheckIn, handleDiscoverPeople, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, socialFeedItems, socialFriends])
+  }, [activeTab, badges, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteCheckIn, handleDiscoverPeople, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, socialFeedItems, socialFriends])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone

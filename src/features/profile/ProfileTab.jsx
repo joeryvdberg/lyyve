@@ -18,6 +18,7 @@ export default function ProfileTab({
   onSignOut,
   friends = [],
   followingIdsExternal = [],
+  followerIdsExternal = [],
   onToggleFollow,
   checkIns = [],
   badges = [],
@@ -43,7 +44,7 @@ export default function ProfileTab({
 
   const initials = avatarInitials(form.displayName)
   const selectedFriend = friends.find((friend) => friend.id === selectedFriendId) ?? null
-  const followers = friends
+  const followers = friends.filter((friend) => followerIdsExternal.includes(friend.id))
   const following = friends.filter((friend) => followingIds.includes(friend.id))
   const unlockedBadges = useMemo(() => badges.filter((badge) => badge.unlocked), [badges])
   const friendSearchResults = useMemo(() => {
