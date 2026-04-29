@@ -18,6 +18,28 @@ function getAuthRedirectUrl() {
   return new URL(fallbackPath, window.location.origin).toString()
 }
 
+function getAuthMessageFromUrl() {
+  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash
+  const hashParams = new URLSearchParams(hash)
+  const searchParams = new URLSearchParams(window.location.search)
+  const errorCode = hashParams.get('error_code') || searchParams.get('error_code') || ''
+  const errorDescription = hashParams.get('error_description') || searchParams.get('error_description') || ''
+
+  if (!errorCode && !errorDescription) return ''
+
+  const normalized = `${errorCode} ${errorDescription}`.toLowerCase()
+  if (normalized.includes('otp_expired') || normalized.includes('expired')) {
+    return 'Deze link is verlopen. Vraag een nieuwe reset- of bevestigingsmail aan.'
+  }
+  if (normalized.includes('already') || normalized.includes('used')) {
+    return 'Deze link is al gebruikt. Vraag een nieuwe link aan als dat nodig is.'
+  }
+  if (normalized.includes('invalid')) {
+    return 'De link is ongeldig. Probeer opnieuw of vraag een nieuwe mail aan.'
+  }
+  return 'De authenticatielink kon niet verwerkt worden. Probeer opnieuw.'
+}
+
 export default function AuthScreen({ forceReset = false }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -26,6 +48,8 @@ export default function AuthScreen({ forceReset = false }) {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const urlAuthMessage = getAuthMessageFromUrl()
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -117,6 +141,32 @@ export default function AuthScreen({ forceReset = false }) {
     } catch (error) {
       setMessage(error?.message || 'OAuth inloggen mislukt.')
       setLoading(false)
+    }
+  }
+
+  async function handleResendConfirmation() {
+    if (!hasSupabaseConfig || !supabase) return
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) {
+      setMessage('Vul eerst je e-mail in en klik daarna opnieuw op resend confirmation.')
+      return
+    }
+
+    setResendLoading(true)
+    setMessage('')
+    try {
+      const emailRedirectTo = getAuthRedirectUrl()
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: trimmedEmail,
+        options: { emailRedirectTo },
+      })
+      if (error) throw error
+      setMessage('Bevestigingsmail opnieuw verstuurd. Check je inbox en spamfolder.')
+    } catch (error) {
+      setMessage(error?.message || 'Bevestigingsmail opnieuw versturen mislukt.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -237,10 +287,20 @@ export default function AuthScreen({ forceReset = false }) {
                   Wachtwoord vergeten?
                 </button>
               )}
+              {mode === 'login' && (
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resendLoading || loading || !hasSupabaseConfig}
+                  className="ml-3 mt-3 text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-60"
+                >
+                  {resendLoading ? 'Bevestiging versturen...' : 'Resend confirmation'}
+                </button>
+              )}
             </>
           )}
 
-          {message && <p className="mt-3 text-xs text-zinc-300">{message}</p>}
+          {(message || urlAuthMessage) && <p className="mt-3 text-xs text-zinc-300">{message || urlAuthMessage}</p>}
         </article>
       </div>
     </div>
