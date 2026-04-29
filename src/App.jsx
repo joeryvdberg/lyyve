@@ -126,6 +126,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('feed')
   const [focusedFriendId, setFocusedFriendId] = useState('')
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
+  const [socialFeedItems, setSocialFeedItems] = useState([])
+  const [socialFriends, setSocialFriends] = useState(friendProfiles)
   const [profile, setProfile] = useState(defaultProfile)
   const [badges, setBadges] = useState([])
   const [session, setSession] = useState(null)
@@ -140,11 +142,20 @@ function App() {
     if (!hasSupabaseConfig || !supabase) return
 
     let mounted = true
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setSession(data.session ?? null)
-      setAuthLoading(false)
-    })
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return
+        setSession(data.session ?? null)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setSession(null)
+      })
+      .finally(() => {
+        if (!mounted) return
+        setAuthLoading(false)
+      })
 
     const {
       data: { subscription },
@@ -185,6 +196,13 @@ function App() {
         if (mounted) setCheckInsLoaded(true)
         return
       }
+      if (hasSupabaseConfig) {
+        // In auth mode without an active session we keep user data empty.
+        if (!mounted) return
+        setMyCheckIns([])
+        setCheckInsLoaded(true)
+        return
+      }
 
       const items = await getAllCheckIns()
       if (!mounted) return
@@ -203,6 +221,131 @@ function App() {
       mounted = false
     }
   }, [session?.user?.email, session?.user?.id])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadSocialFeed() {
+      if (!(hasSupabaseConfig && supabase && session?.user?.id)) {
+        const localMyFeedItems = myCheckIns.map((item) => ({
+          id: item.id,
+          user: profile.displayName || profile.username || 'Jij',
+          artist: item.artist,
+          event: item.venue,
+          rating: Number(item.rating ?? 0),
+          note: item.note ?? '',
+          photoDataUrl: item.photoDataUrl || item.photo_url || '',
+          createdAt: item.createdAt || '',
+          isFriendPost: false,
+          friendId: '',
+        }))
+
+        const localFriendItems = friendProfiles.flatMap((friend) =>
+          (friend.checkIns ?? []).map((item) => ({
+            id: item.id,
+            user: friend.displayName || friend.username || 'Gebruiker',
+            artist: item.artist,
+            event: item.venue,
+            rating: Number(item.rating ?? 0),
+            note: item.note ?? '',
+            photoDataUrl: item.photoDataUrl || item.photo_url || '',
+            createdAt: item.createdAt || '',
+            isFriendPost: true,
+            friendId: friend.id,
+          }))
+        )
+
+        if (!mounted) return
+        setSocialFeedItems(
+          [...localMyFeedItems, ...localFriendItems].sort(
+            (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          )
+        )
+        setSocialFriends(friendProfiles)
+        return
+      }
+
+      const { data: feedRows, error: feedError } = await supabase
+        .from('check_ins')
+        .select('id, user_id, artist, venue, note, rating, created_at, photo_url, city, country')
+        .order('created_at', { ascending: false })
+        .limit(120)
+
+      if (!mounted) return
+      if (feedError || !feedRows) {
+        setSocialFeedItems([])
+        setSocialFriends([])
+        return
+      }
+
+      const userIds = [...new Set(feedRows.map((row) => row.user_id).filter(Boolean))]
+      let profilesById = {}
+      if (userIds.length > 0) {
+        const { data: profileRows } = await supabase
+          .from('profiles')
+          .select('id, username, display_name, bio, avatar_url, city, favorite_genres, favorite_artists')
+          .in('id', userIds)
+
+        if (!mounted) return
+        profilesById = Object.fromEntries((profileRows ?? []).map((row) => [row.id, row]))
+      }
+
+      const mappedFeed = feedRows.map((row) => {
+        const isOwn = row.user_id === session.user.id
+        const linkedProfile = profilesById[row.user_id] ?? null
+        return {
+          id: row.id,
+          user: isOwn
+            ? profile.displayName || profile.username || 'Jij'
+            : linkedProfile?.display_name || linkedProfile?.username || 'Gebruiker',
+          artist: row.artist,
+          event: row.venue,
+          rating: Number(row.rating ?? 0),
+          note: row.note ?? '',
+          photoDataUrl: row.photo_url || '',
+          createdAt: row.created_at || '',
+          isFriendPost: !isOwn,
+          friendId: isOwn ? '' : row.user_id,
+        }
+      })
+
+      const friendMap = {}
+      for (const row of feedRows) {
+        if (!row.user_id || row.user_id === session.user.id) continue
+        const linkedProfile = profilesById[row.user_id] ?? null
+        if (!friendMap[row.user_id]) {
+          friendMap[row.user_id] = {
+            id: row.user_id,
+            username: linkedProfile?.username || `user-${String(row.user_id).slice(0, 8)}`,
+            displayName: linkedProfile?.display_name || linkedProfile?.username || 'Gebruiker',
+            bio: linkedProfile?.bio || '',
+            avatarUrl: linkedProfile?.avatar_url || '',
+            city: linkedProfile?.city || '',
+            checkIns: [],
+          }
+        }
+        friendMap[row.user_id].checkIns.push({
+          id: row.id,
+          artist: row.artist,
+          venue: row.venue,
+          note: row.note ?? '',
+          rating: Number(row.rating ?? 0),
+          createdAt: row.created_at || '',
+          photoDataUrl: row.photo_url || '',
+          city: row.city ?? '',
+          country: row.country ?? '',
+        })
+      }
+
+      setSocialFeedItems(mappedFeed)
+      setSocialFriends(Object.values(friendMap))
+    }
+
+    loadSocialFeed()
+    return () => {
+      mounted = false
+    }
+  }, [myCheckIns, profile.displayName, profile.username, session?.user?.id])
 
   useEffect(() => {
     let mounted = true
@@ -258,6 +401,13 @@ function App() {
           })
         }
         if (mounted) setProfileLoaded(true)
+        return
+      }
+      if (hasSupabaseConfig) {
+        // In auth mode without an active session we keep profile state neutral.
+        if (!mounted) return
+        setProfile(defaultProfile)
+        setProfileLoaded(true)
         return
       }
 
@@ -451,7 +601,7 @@ function App() {
           profile={profile}
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
-          friends={friendProfiles}
+          friends={socialFriends}
           checkIns={myCheckIns}
           badges={badges}
           externalSelectedFriendId={focusedFriendId}
@@ -463,12 +613,13 @@ function App() {
       <FeedTab
         checkIns={myCheckIns}
         profile={profile}
+        feedItems={socialFeedItems}
         onUpdateCheckIn={handleUpdateCheckIn}
         onDeleteCheckIn={handleDeleteCheckIn}
         onOpenProfile={handleOpenProfileFromFeed}
       />
     )
-  }, [activeTab, badges, focusedFriendId, handleAddCheckIn, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleUpdateCheckIn, myCheckIns, profile])
+  }, [activeTab, badges, focusedFriendId, handleAddCheckIn, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleUpdateCheckIn, myCheckIns, profile, socialFeedItems, socialFriends])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone

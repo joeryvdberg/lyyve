@@ -2,34 +2,7 @@ import { useMemo, useState } from 'react'
 import { useEffect } from 'react'
 import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
 
-const friendFeedItems = [
-  {
-    id: 'friend-feed-noa-1',
-    friendId: 'friend-noa',
-    user: 'Noa',
-    artist: 'Fred again..',
-    event: 'Lowlands 2026',
-    rating: 5,
-    note: 'Bizar goeie energie. Hele tent ging los.',
-    createdAt: '2026-08-20T19:10:00Z',
-    photoDataUrl:
-      'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1600&q=70',
-  },
-  {
-    id: 'friend-feed-jesse-1',
-    friendId: 'friend-jesse',
-    user: 'Jesse',
-    artist: 'The Blaze',
-    event: 'Pukkelpop 2026',
-    rating: 4,
-    note: 'Visueel heel sterk, sound iets te zacht.',
-    createdAt: '2026-08-16T20:45:00Z',
-    photoDataUrl:
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1600&q=70',
-  },
-]
-
-export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCheckIn, onOpenProfile }) {
+export default function FeedTab({ checkIns, profile, feedItems = [], onUpdateCheckIn, onDeleteCheckIn, onOpenProfile }) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
@@ -38,20 +11,20 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
   const [menuOpenId, setMenuOpenId] = useState('')
   const [editDraft, setEditDraft] = useState({ artist: '', venue: '', note: '', rating: 8, photoDataUrl: '' })
 
-  const myFeedItems = checkIns.map((item) => ({
-    id: item.id,
-    user: profile.displayName || profile.username || 'Jij',
-    artist: item.artist,
-    event: item.venue,
-    rating: item.rating,
-    note: item.note,
-    photoDataUrl: item.photoDataUrl || item.photo_url || '',
-    createdAt: item.createdAt || '',
-    isFriendPost: false,
-    friendId: '',
-  }))
-
-  const feedItems = [...myFeedItems, ...friendFeedItems.map((item) => ({ ...item, isFriendPost: true }))]
+  const renderedFeedItems = feedItems.length
+    ? feedItems
+    : checkIns.map((item) => ({
+        id: item.id,
+        user: profile.displayName || profile.username || 'Jij',
+        artist: item.artist,
+        event: item.venue,
+        rating: item.rating,
+        note: item.note,
+        photoDataUrl: item.photoDataUrl || item.photo_url || '',
+        createdAt: item.createdAt || '',
+        isFriendPost: false,
+        friendId: '',
+      }))
 
   const defaultInteractions = useMemo(() => ({}), [])
 
@@ -192,7 +165,7 @@ export default function FeedTab({ checkIns, profile, onUpdateCheckIn, onDeleteCh
         Hier zie je check-ins van vrienden: welke artiest ze zagen, hun score en opmerking.
       </p>
       <div className="space-y-3">
-        {feedItems.map((item, index) => (
+        {renderedFeedItems.map((item, index) => (
           <article
             key={item.id ?? `${item.user}-${item.artist}-${index}`}
             className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/70 shadow-xl shadow-fuchsia-500/10 backdrop-blur-xl"
