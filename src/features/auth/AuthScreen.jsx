@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { hasSupabaseConfig, supabase } from '../../lib/supabase'
 
 function validatePassword(value) {
-  const minLength = value.length >= 8
+  const minLength = value.length >= 10
   const hasLower = /[a-z]/.test(value)
   const hasUpper = /[A-Z]/.test(value)
   const hasNumber = /\d/.test(value)
   const hasSpecial = /[^A-Za-z0-9]/.test(value)
-  const valid = minLength && hasLower && hasUpper && hasNumber && hasSpecial
-  return { valid, minLength, hasLower, hasUpper, hasNumber, hasSpecial }
+  const hasNoWhitespace = !/\s/.test(value)
+  const valid = minLength && hasLower && hasUpper && hasNumber && hasSpecial && hasNoWhitespace
+  return { valid, minLength, hasLower, hasUpper, hasNumber, hasSpecial, hasNoWhitespace }
 }
 
 function getAuthRedirectUrl() {
@@ -75,6 +76,17 @@ function normalizeUsername(value) {
     .replace(/[^a-z0-9._-]/g, '')
 }
 
+const GENRE_OPTIONS = [
+  'House',
+  'Techno',
+  'Indie Dance',
+  'Drum & Bass',
+  'Hip-Hop',
+  'Pop',
+  'Rock',
+  'Afro',
+]
+
 export default function AuthScreen({ forceReset = false }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -106,7 +118,9 @@ export default function AuthScreen({ forceReset = false }) {
       if (mode === 'signup' || mode === 'reset') {
         const ruleCheck = validatePassword(password)
         if (!ruleCheck.valid) {
-          setPasswordError('Wachtwoord moet min. 8 tekens hebben, incl. hoofdletter, cijfer en symbool.')
+          setPasswordError(
+            'Wachtwoord moet min. 10 tekens hebben, met hoofdletter, kleine letter, cijfer, symbool en zonder spaties.'
+          )
           setLoading(false)
           return
         }
@@ -125,11 +139,6 @@ export default function AuthScreen({ forceReset = false }) {
         }
         if (normalizedUsername.length < 3) {
           setMessage('Kies een gebruikersnaam van minimaal 3 tekens.')
-          setLoading(false)
-          return
-        }
-        if (city.trim().length < 2) {
-          setMessage('Vul je stad in om je profiel direct compleet te maken.')
           setLoading(false)
           return
         }
@@ -246,6 +255,20 @@ export default function AuthScreen({ forceReset = false }) {
     }
   }
 
+  function toggleGenre(genre) {
+    setFavoriteGenres((prev) => {
+      const parsed = prev
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+      const exists = parsed.some((item) => item.toLowerCase() === genre.toLowerCase())
+      if (exists) {
+        return parsed.filter((item) => item.toLowerCase() !== genre.toLowerCase()).join(', ')
+      }
+      return [...parsed, genre].join(', ')
+    })
+  }
+
   if (pendingVerificationEmail) {
     return (
       <div className="relative min-h-svh overflow-hidden bg-[#05020f] text-zinc-100">
@@ -302,7 +325,6 @@ export default function AuthScreen({ forceReset = false }) {
             <div className="mt-3 rounded-xl border border-white/10 bg-zinc-950/60 p-3">
               <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-zinc-400">
                 <span>Stap 1 van 2</span>
-                <span>Profiel + beveiliging</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
                 <div className="h-full w-1/2 rounded-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-sky-500" />
@@ -366,8 +388,8 @@ export default function AuthScreen({ forceReset = false }) {
                     onChange={(event) => setCity(event.target.value)}
                     className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
                     placeholder="Bijv. Amsterdam"
-                    required
                   />
+                  <p className="mt-1 text-xs text-zinc-500">Optioneel - gebruiken we om events in jouw buurt te tonen.</p>
                 </label>
                 <label className="block text-sm text-zinc-300">
                   Favoriete genres
@@ -377,6 +399,28 @@ export default function AuthScreen({ forceReset = false }) {
                     className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
                     placeholder="Bijv. House, Techno"
                   />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {GENRE_OPTIONS.map((genre) => {
+                      const isActive = favoriteGenres
+                        .split(',')
+                        .map((item) => item.trim().toLowerCase())
+                        .includes(genre.toLowerCase())
+                      return (
+                        <button
+                          key={`genre-option-${genre}`}
+                          type="button"
+                          onClick={() => toggleGenre(genre)}
+                          className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                            isActive
+                              ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
+                              : 'border-white/10 bg-zinc-950 text-zinc-300 hover:border-cyan-300/40'
+                          }`}
+                        >
+                          {genre}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </label>
                 <label className="block text-sm text-zinc-300">
                   Favoriete artiesten
@@ -396,8 +440,12 @@ export default function AuthScreen({ forceReset = false }) {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Minimaal 6 tekens"
-                minLength={6}
+                placeholder="Minimaal 10 tekens"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                minLength={10}
+                pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])(?=\S+$).{10,}$"
+                title="Minimaal 10 tekens, met hoofdletter, kleine letter, cijfer, symbool en zonder spaties."
+                spellCheck={false}
                 required
               />
             </label>
@@ -411,12 +459,15 @@ export default function AuthScreen({ forceReset = false }) {
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
                     placeholder="Herhaal je wachtwoord"
-                    minLength={8}
+                    autoComplete="new-password"
+                    minLength={10}
+                    pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])(?=\S+$).{10,}$"
+                    title="Minimaal 10 tekens, met hoofdletter, kleine letter, cijfer, symbool en zonder spaties."
                     required
                   />
                 </label>
                 <p className="text-xs text-zinc-500">
-                  Gebruik minimaal 8 tekens met hoofdletter, kleine letter, cijfer en symbool.
+                  Gebruik minimaal 10 tekens met hoofdletter, kleine letter, cijfer, symbool en zonder spaties.
                 </p>
               </>
             )}
