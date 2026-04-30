@@ -338,8 +338,11 @@ function App() {
 
         if (!mounted) return
         if (followingError || followerError) {
+          const detail = followingError?.message || followerError?.message
+            ? ` (${followingError?.message || followerError?.message})`
+            : ''
           setFollowSyncError(
-            'Volgen/volgers konden niet geladen worden. Controleer Supabase RLS policies op follows.'
+            `Volgen/volgers konden niet geladen worden. Controleer Supabase RLS policies op follows.${detail}`
           )
           setFollowingIds([])
           setFollowerIds([])
@@ -434,8 +437,9 @@ function App() {
 
       if (!mounted) return
       if (feedError || !feedRows) {
+        const detail = feedError?.message ? ` (${feedError.message})` : ''
         setSocialFeedError(
-          'Feed kan nu geen posts van andere gebruikers laden. Controleer de Supabase RLS SELECT policy op check_ins.'
+          `Feed kan nu geen posts van andere gebruikers laden. Controleer de Supabase RLS SELECT policy op check_ins.${detail}`
         )
         setSocialFeedItems([])
         setSocialFriends([])
@@ -1075,8 +1079,9 @@ function App() {
           setFollowingIds((prev) =>
             isFollowing ? [...prev, friendId] : prev.filter((id) => id !== friendId)
           )
+          const detail = writeError?.message ? ` (${writeError.message})` : ''
           setFollowSyncError(
-            'Volgen opslaan mislukt in Supabase. Controleer follows INSERT/DELETE RLS policies.'
+            `Volgen opslaan mislukt in Supabase. Controleer follows INSERT/DELETE RLS policies.${detail}`
           )
           window.alert(
             'Volgen kon niet worden opgeslagen. Controleer Supabase RLS policies op de follows tabel.'
