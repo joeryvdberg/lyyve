@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import Turnstile from 'react-turnstile'
+import { Turnstile } from 'react-turnstile'
 import { getCatalogEntries } from '../../lib/db'
 import { hasSupabaseConfig, supabase } from '../../lib/supabase'
 
@@ -627,7 +627,7 @@ export default function AuthScreen({ forceReset = false }) {
                   onVerify={(token) => setCaptchaToken(token)}
                   onExpire={() => setCaptchaToken('')}
                   onError={() => setCaptchaToken('')}
-                  options={{ theme: 'dark' }}
+                  theme="dark"
                 />
                 <p className="text-[11px] text-zinc-500">Bevestig captcha voordat je doorgaat.</p>
               </div>
