@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import Turnstile from 'react-turnstile'
 import { getCatalogEntries } from '../../lib/db'
 import { hasSupabaseConfig, supabase } from '../../lib/supabase'
 
@@ -65,6 +66,9 @@ function mapAuthErrorMessage(error) {
   }
   if (raw.includes('email not confirmed') || raw.includes('email_not_confirmed')) {
     return 'Je e-mailadres is nog niet bevestigd. Check je inbox of klik op resend confirmation.'
+  }
+  if (raw.includes('captcha')) {
+    return 'Captcha verificatie mislukt. Probeer opnieuw.'
   }
   return error?.message || 'Inloggen mislukt.'
 }
@@ -141,7 +145,11 @@ export default function AuthScreen({ forceReset = false }) {
   const [resendLoading, setResendLoading] = useState(false)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState('')
   const [artistPool, setArtistPool] = useState([])
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaWidgetNonce, setCaptchaWidgetNonce] = useState(0)
   const urlAuthMessage = getAuthMessageFromUrl()
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
+  const captchaEnabled = Boolean(turnstileSiteKey)
   const favoriteArtistSuggestions = useMemo(() => {
     if (mode !== 'signup') return []
     const raw = String(favoriteArtists || '')
@@ -181,6 +189,17 @@ export default function AuthScreen({ forceReset = false }) {
     }
   }, [mode])
 
+  function consumeCaptchaToken() {
+    setCaptchaToken('')
+    setCaptchaWidgetNonce((prev) => prev + 1)
+  }
+
+  function getCaptchaTokenOrThrow(actionLabel) {
+    if (!captchaEnabled) return ''
+    if (captchaToken) return captchaToken
+    throw new Error(`Bevestig eerst de captcha om ${actionLabel}.`)
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     if (!hasSupabaseConfig || !supabase) return
@@ -192,6 +211,8 @@ export default function AuthScreen({ forceReset = false }) {
       const normalizedEmail = email.trim().toLowerCase()
       const normalizedUsername = normalizeUsername(username)
       const redirectTo = getAuthRedirectUrl()
+      const captchaTokenForRequest =
+        mode === 'reset' ? '' : getCaptchaTokenOrThrow(mode === 'signup' ? 'je account aan te maken' : 'in te loggen')
       if (mode === 'signup' || mode === 'reset') {
         const ruleCheck = validatePassword(password)
         if (!ruleCheck.valid) {
@@ -226,6 +247,7 @@ export default function AuthScreen({ forceReset = false }) {
           email: normalizedEmail,
           password,
           options: {
+            captchaToken: captchaTokenForRequest,
             emailRedirectTo: redirectTo,
             data: {
               username: normalizedUsername,
@@ -255,9 +277,16 @@ export default function AuthScreen({ forceReset = false }) {
         setConfirmPassword('')
         setMessage('Wachtwoord aangepast. Log nu opnieuw in.')
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+          options: { captchaToken: captchaTokenForRequest },
+        })
         if (error) throw error
         setMessage('Welkom terug.')
+      }
+      if (captchaEnabled && mode !== 'reset') {
+        consumeCaptchaToken()
       }
     } catch (error) {
       setMessage(mapAuthErrorMessage(error))
@@ -278,9 +307,16 @@ export default function AuthScreen({ forceReset = false }) {
     setMessage('')
     try {
       const redirectTo = getAuthRedirectUrl()
-      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, { redirectTo })
+      const captchaTokenForRequest = getCaptchaTokenOrThrow('een resetmail te versturen')
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo,
+        captchaToken: captchaTokenForRequest,
+      })
       if (error) throw error
       setMessage('Resetmail verstuurd. Open de link in je mail om een nieuw wachtwoord in te stellen.')
+      if (captchaEnabled) {
+        consumeCaptchaToken()
+      }
     } catch (error) {
       setMessage(error?.message || 'Resetmail versturen mislukt.')
     } finally {
@@ -295,11 +331,15 @@ export default function AuthScreen({ forceReset = false }) {
     setMessage('')
     try {
       const redirectTo = getAuthRedirectUrl()
+      const captchaTokenForRequest = getCaptchaTokenOrThrow('door te gaan met Google')
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo },
+        options: { redirectTo, captchaToken: captchaTokenForRequest },
       })
       if (error) throw error
+      if (captchaEnabled) {
+        consumeCaptchaToken()
+      }
     } catch (error) {
       setMessage(error?.message || 'OAuth inloggen mislukt.')
       setLoading(false)
@@ -579,9 +619,22 @@ export default function AuthScreen({ forceReset = false }) {
             {mode === 'signup' && (
               <p className="text-xs text-zinc-500">Per e-mailadres is maar 1 account toegestaan.</p>
             )}
+            {captchaEnabled && mode !== 'reset' && (
+              <div className="space-y-1">
+                <Turnstile
+                  key={`turnstile-${mode}-${captchaWidgetNonce}`}
+                  sitekey={turnstileSiteKey}
+                  onVerify={(token) => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken('')}
+                  onError={() => setCaptchaToken('')}
+                  options={{ theme: 'dark' }}
+                />
+                <p className="text-[11px] text-zinc-500">Bevestig captcha voordat je doorgaat.</p>
+              </div>
+            )}
             <button
               type="submit"
-              disabled={loading || !hasSupabaseConfig}
+              disabled={loading || !hasSupabaseConfig || (captchaEnabled && mode !== 'reset' && !captchaToken)}
               className="w-full rounded-xl bg-gradient-to-r from-rose-500 via-fuchsia-500 to-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 disabled:opacity-60"
             >
               {loading ? 'Bezig...' : mode === 'signup' ? 'Account maken' : mode === 'reset' ? 'Wachtwoord opslaan' : 'Inloggen'}
@@ -594,7 +647,7 @@ export default function AuthScreen({ forceReset = false }) {
               <button
                 type="button"
                 onClick={() => handleOAuthSignIn('google')}
-                disabled={loading || !hasSupabaseConfig}
+                disabled={loading || !hasSupabaseConfig || (captchaEnabled && !captchaToken)}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-white/30 disabled:opacity-60"
               >
                 <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold text-zinc-900">
@@ -623,6 +676,7 @@ export default function AuthScreen({ forceReset = false }) {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
+                  disabled={loading || (captchaEnabled && !captchaToken)}
                   className="ml-3 mt-3 text-xs text-zinc-400 hover:text-zinc-200"
                 >
                   Wachtwoord vergeten?
