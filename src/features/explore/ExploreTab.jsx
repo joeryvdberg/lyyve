@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getCatalogEntries, getEventCache, saveEventCache } from '../../lib/db'
+import { hasSupabaseConfig, supabase } from '../../lib/supabase'
 
 const MAINSTREAM_ARTISTS = new Set(
   [
@@ -265,6 +266,7 @@ export default function ExploreTab({
   const [expandedEventId, setExpandedEventId] = useState('')
   const [eventDetailsById, setEventDetailsById] = useState({})
   const [eventDetailsLoadingId, setEventDetailsLoadingId] = useState('')
+  const [peopleDirectory, setPeopleDirectory] = useState([])
 
   useEffect(() => {
     let mounted = true
@@ -302,12 +304,50 @@ export default function ExploreTab({
     }
   }, [datasetBase])
 
+  useEffect(() => {
+    let mounted = true
+
+    async function loadPeopleDirectory() {
+      if (!(hasSupabaseConfig && supabase)) {
+        if (mounted) setPeopleDirectory([])
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, bio, avatar_url, city')
+        .limit(1000)
+
+      if (!mounted) return
+      if (error || !Array.isArray(data)) {
+        setPeopleDirectory([])
+        return
+      }
+
+      setPeopleDirectory(
+        data.map((row) => ({
+          id: row.id,
+          username: row.username || '',
+          displayName: row.display_name || row.username || 'Gebruiker',
+          bio: row.bio || '',
+          avatarUrl: row.avatar_url || '',
+          city: row.city || '',
+        }))
+      )
+    }
+
+    loadPeopleDirectory()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   const pool = mode === 'artist' ? artists : mode === 'venue' ? venues : []
 
   const normalizedQuery = normalizeText(query)
   const rankedPeople = useMemo(() => {
     const peopleQuery = normalizePeopleSearch(query)
-    const source = [...friends]
+    const source = peopleDirectory.length > 0 ? [...peopleDirectory] : [...friends]
     if (!peopleQuery) return source.slice(0, 30)
     return source
       .filter((friend) => {
@@ -316,7 +356,7 @@ export default function ExploreTab({
         return displayName.includes(peopleQuery) || username.includes(peopleQuery)
       })
       .slice(0, 30)
-  }, [friends, query])
+  }, [friends, peopleDirectory, query])
 
   const rankedItems = useMemo(() => {
     const source = [...pool].filter((item) => isRecognizableName(getName(item)))
