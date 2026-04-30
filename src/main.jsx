@@ -1,4 +1,4 @@
-import { Component, StrictMode } from 'react'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
@@ -27,38 +27,6 @@ window.addEventListener('unhandledrejection', (event) => {
   renderFatalBootMessage(reason)
 })
 
-class RootErrorBoundary extends Component {
-  constructor(props) {
-    super(props)
-    this.state = { hasError: false, message: '' }
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, message: error?.message || 'react-render-error' }
-  }
-
-  componentDidCatch() {
-    // No-op: message is surfaced in fallback UI.
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-svh bg-[#05020f] px-6 py-10 text-zinc-100">
-          <div className="mx-auto max-w-xl rounded-2xl border border-white/15 bg-zinc-900/70 p-5">
-            <h1 className="text-lg font-semibold text-white">Lyyve kon niet laden</h1>
-            <p className="mt-2 text-sm text-zinc-300">
-              Ververs de pagina. Blijft dit terugkomen? Deel deze melding:
-              <code className="ml-1 text-cyan-300">{this.state.message}</code>
-            </p>
-          </div>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
 // Keep layout stable on mobile by preventing gesture zoom.
 document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false })
 document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false })
@@ -75,9 +43,7 @@ if ('serviceWorker' in navigator) {
 }
 
 createRoot(document.getElementById('root')).render(
-  <RootErrorBoundary>
-    <StrictMode>
-      <App />
-    </StrictMode>
-  </RootErrorBoundary>,
+  <StrictMode>
+    <App />
+  </StrictMode>,
 )
