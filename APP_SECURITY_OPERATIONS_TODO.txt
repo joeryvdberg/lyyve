@@ -46,6 +46,13 @@
     - Definieer incident-procedure voor auth storingen.
     - Voeg foutlogging/monitoring toe (frontend + backend events).
     - Maak release checklist voor auth changes (lint/build/manual smoke test).
+    - Plan wekelijks usage-checks:
+      - Supabase database usage.
+      - Storage size + egress.
+      - Auth/mail volume.
+    - Stel interne drempels in:
+      - 70% usage = optimalisaties direct inplannen.
+      - 85% usage = upgradepad voorbereiden en capaciteit reserveren.
 
 [ ] Performance en resilience.
     - Splits grote JS chunks (auth + explore lazy loading waar mogelijk).
