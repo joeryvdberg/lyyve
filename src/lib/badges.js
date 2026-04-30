@@ -130,7 +130,7 @@ function inferCountryFromCheckIn(checkIn) {
   return ''
 }
 
-export function evaluateBadges(checkIns = [], existingBadges = []) {
+export function evaluateBadges(checkIns = [], existingBadges = [], options = {}) {
   const existingMap = new Map(existingBadges.map((badge) => [badge.id, badge]))
   const now = new Date().toISOString()
   const firstCheckInAt = checkIns
@@ -155,7 +155,10 @@ export function evaluateBadges(checkIns = [], existingBadges = []) {
 
   const countryCount = new Set(checkIns.map(inferCountryFromCheckIn).filter(Boolean)).size
   const highRatingCount = checkIns.filter((item) => Number(item.rating ?? 0) >= 9).length
-  const isEarlyAdopter = Boolean(firstCheckInAt && new Date(firstCheckInAt).getTime() < new Date('2027-01-01').getTime())
+  const earlyAdopterFromDate = Boolean(
+    firstCheckInAt && new Date(firstCheckInAt).getTime() < new Date('2027-01-01').getTime()
+  )
+  const isEarlyAdopter = options.earlyAdopterEligible ?? earlyAdopterFromDate
 
   const progressByMetric = {
     highestArtistCount,

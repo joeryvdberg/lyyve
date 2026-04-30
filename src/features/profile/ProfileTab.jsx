@@ -211,6 +211,8 @@ export default function ProfileTab({
   profile,
   onSaveProfile,
   onSignOut,
+  onDeleteAccount,
+  forceProfileCompletion = false,
   friends = [],
   followingIdsExternal = [],
   followerIdsExternal = [],
@@ -378,20 +380,23 @@ export default function ProfileTab({
     let cancelled = false
 
     async function loadGlobalBadgePercentages() {
-      const profileIds = []
+      const profiles = []
       const pageSize = 1000
       let from = 0
       while (!cancelled) {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, created_at')
+          .order('created_at', { ascending: true })
           .range(from, from + pageSize - 1)
         if (error || !data || data.length === 0) break
-        profileIds.push(...data.map((row) => row.id).filter(Boolean))
+        profiles.push(...data.filter((row) => row.id))
         if (data.length < pageSize) break
         from += pageSize
       }
+      const profileIds = profiles.map((row) => row.id)
       if (cancelled || profileIds.length === 0) return
+      const earlyAdopterIds = new Set(profiles.slice(0, 100).map((row) => row.id))
 
       const rows = []
       from = 0
@@ -423,7 +428,9 @@ export default function ProfileTab({
 
       const totals = Object.fromEntries(badges.map((badge) => [badge.id, 0]))
       for (const userId of profileIds) {
-        const userBadges = evaluateBadges(checkInsByUser.get(userId) || [], [])
+        const userBadges = evaluateBadges(checkInsByUser.get(userId) || [], [], {
+          earlyAdopterEligible: earlyAdopterIds.has(userId),
+        })
         for (const badge of userBadges) {
           if (badge.unlocked) totals[badge.id] = (totals[badge.id] ?? 0) + 1
         }
@@ -473,6 +480,12 @@ export default function ProfileTab({
   useEffect(() => {
     setFollowingIds(followingIdsExternal)
   }, [followingIdsExternal])
+
+  useEffect(() => {
+    if (forceProfileCompletion && !isEditing) {
+      setIsEditing(true)
+    }
+  }, [forceProfileCompletion, isEditing])
 
   useEffect(() => {
     if (onToggleFollow) return
@@ -651,7 +664,7 @@ export default function ProfileTab({
                 value={form.displayName}
                 onChange={handleChange('displayName')}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Bijv. Joery van den Berg"
+                placeholder="Bijv. Alex de Vries"
               />
             </label>
             <label className="block text-sm text-zinc-300">
@@ -660,10 +673,11 @@ export default function ProfileTab({
                 value={form.username}
                 onChange={handleChange('username')}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Bijv. joerylive"
+                placeholder="Bijv. alexbeats"
                 autoCapitalize="off"
                 autoCorrect="off"
               />
+              <p className="mt-1 text-xs text-zinc-500">Gebruikersnaam wijzigen kan maximaal 1x per 30 dagen.</p>
             </label>
             <label className="block text-sm text-zinc-300">
               Bio
@@ -1046,6 +1060,11 @@ export default function ProfileTab({
           </div>
         </div>
         <p className="mt-3 text-sm text-zinc-300">{form.bio || 'Voeg een korte bio toe.'}</p>
+        {forceProfileCompletion && (
+          <p className="mt-3 rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            Maak je profiel compleet (naam, gebruikersnaam en favorieten) om alles uit Lyyve te halen.
+          </p>
+        )}
         <button
           type="button"
           onClick={() => setIsEditing(true)}
@@ -1060,6 +1079,15 @@ export default function ProfileTab({
             className="ml-2 mt-4 rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/30"
           >
             Uitloggen
+          </button>
+        )}
+        {onDeleteAccount && (
+          <button
+            type="button"
+            onClick={onDeleteAccount}
+            className="ml-2 mt-4 rounded-xl border border-rose-300/35 bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-200 transition hover:border-rose-200/50"
+          >
+            Account verwijderen
           </button>
         )}
       </article>

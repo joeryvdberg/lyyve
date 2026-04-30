@@ -102,14 +102,15 @@ const friendProfiles = [
 
 const defaultProfile = {
   id: 'me',
-  username: 'joerylive',
-  displayName: 'Joery van den Berg',
-  bio: 'House, techno en indie. Altijd op zoek naar de beste liveset.',
+  username: 'lyyve-user',
+  displayName: 'Nieuwe gebruiker',
+  bio: '',
   avatarUrl: '',
-  favoriteGenres: 'House, Techno, Indie Dance',
-  favoriteArtists: 'BICEP, Fred again.., The Blaze',
-  city: 'Amsterdam',
+  favoriteGenres: '',
+  favoriteArtists: '',
+  city: '',
   eventRadiusKm: 75,
+  usernameChangedAt: '',
 }
 
 function loadStoredEventRadius(userId) {
@@ -177,6 +178,16 @@ function containsBlockedNameLanguage(value = '') {
 function metadataString(meta, key, fallback = '') {
   const value = meta?.[key]
   return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
+function buildUsernameFromEmailOrId(email = '', userId = '') {
+  const local = String(email || '')
+    .split('@')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+    .slice(0, 18)
+  if (local.length >= 3) return local
+  return `lyyve_${String(userId || '').replace(/-/g, '').slice(0, 8)}`
 }
 
 function App() {
@@ -532,7 +543,16 @@ function App() {
     let mounted = true
     async function syncBadges() {
       const storedBadges = await getBadges()
-      const evaluated = evaluateBadges(myCheckIns, storedBadges)
+      let earlyAdopterEligible
+      if (hasSupabaseConfig && supabase && session?.user?.id) {
+        const { data: firstProfiles } = await supabase
+          .from('profiles')
+          .select('id')
+          .order('created_at', { ascending: true })
+          .limit(100)
+        earlyAdopterEligible = (firstProfiles ?? []).some((row) => row.id === session.user.id)
+      }
+      const evaluated = evaluateBadges(myCheckIns, storedBadges, { earlyAdopterEligible })
       await saveBadges(evaluated)
       if (mounted) setBadges(evaluated)
     }
@@ -540,7 +560,7 @@ function App() {
     return () => {
       mounted = false
     }
-  }, [myCheckIns])
+  }, [myCheckIns, session?.user?.id])
 
   useEffect(() => {
     let mounted = true
@@ -554,34 +574,58 @@ function App() {
           setProfile({
             ...defaultProfile,
             id: data.id,
-            username: data.username || defaultProfile.username,
-            displayName: data.display_name || defaultProfile.displayName,
-            bio: data.bio || defaultProfile.bio,
-            city: data.city || defaultProfile.city,
+            username: data.username || buildUsernameFromEmailOrId(session.user.email, data.id),
+            displayName:
+              data.display_name ||
+              metadataString(session.user.user_metadata ?? {}, 'full_name', defaultProfile.displayName),
+            bio: data.bio || '',
+            city: data.city || '',
             avatarUrl: data.avatar_url || '',
-            favoriteGenres: data.favorite_genres || defaultProfile.favoriteGenres,
-            favoriteArtists: data.favorite_artists || defaultProfile.favoriteArtists,
+            favoriteGenres: data.favorite_genres || '',
+            favoriteArtists: data.favorite_artists || '',
             eventRadiusKm: storedRadius ?? defaultProfile.eventRadiusKm,
+            usernameChangedAt: data.username_changed_at || '',
             updatedAt: data.updated_at || '',
           })
         } else {
           const userMeta = session.user.user_metadata ?? {}
-          const fallbackName = metadataString(userMeta, 'username', session.user.email?.split('@')[0] || defaultProfile.username)
-          const fallbackDisplayName = metadataString(userMeta, 'display_name', defaultProfile.displayName)
-          const fallbackCity = metadataString(userMeta, 'city', defaultProfile.city)
-          const fallbackGenres = metadataString(userMeta, 'favorite_genres', defaultProfile.favoriteGenres)
-          const fallbackArtists = metadataString(userMeta, 'favorite_artists', defaultProfile.favoriteArtists)
+          const fallbackName = metadataString(
+            userMeta,
+            'username',
+            buildUsernameFromEmailOrId(session.user.email, session.user.id)
+          )
+          const fallbackDisplayName = metadataString(
+            userMeta,
+            'display_name',
+            metadataString(userMeta, 'full_name', defaultProfile.displayName)
+          )
+          const fallbackCity = metadataString(userMeta, 'city', '')
+          const fallbackGenres = metadataString(userMeta, 'favorite_genres', '')
+          const fallbackArtists = metadataString(userMeta, 'favorite_artists', '')
           const initialProfile = {
             id: session.user.id,
             username: fallbackName,
             display_name: fallbackDisplayName,
-            bio: defaultProfile.bio,
+            bio: '',
             city: fallbackCity,
             avatar_url: '',
             favorite_genres: fallbackGenres,
             favorite_artists: fallbackArtists,
+            username_changed_at: new Date().toISOString(),
           }
-          await supabase.from('profiles').upsert(initialProfile)
+          const { error: initialProfileError } = await supabase.from('profiles').upsert(initialProfile)
+          if (initialProfileError) {
+            await supabase.from('profiles').upsert({
+              id: session.user.id,
+              username: fallbackName,
+              display_name: fallbackDisplayName,
+              bio: '',
+              city: fallbackCity,
+              avatar_url: '',
+              favorite_genres: fallbackGenres,
+              favorite_artists: fallbackArtists,
+            })
+          }
           setProfile({
             ...defaultProfile,
             id: session.user.id,
@@ -590,6 +634,7 @@ function App() {
             city: fallbackCity,
             favoriteGenres: fallbackGenres,
             favoriteArtists: fallbackArtists,
+            usernameChangedAt: new Date().toISOString(),
           })
         }
         if (mounted) setProfileLoaded(true)
@@ -706,6 +751,9 @@ function App() {
     const mergedProfile = { ...defaultProfile, ...nextProfile, id: 'me' }
     const normalizedUsername = normalizeUsername(mergedProfile.username)
     const normalizedDisplayName = String(mergedProfile.displayName || '').trim()
+    const previousUsername = normalizeUsername(profile.username || '')
+    const usernameChanged = normalizedUsername !== previousUsername
+    const usernameChangedAtRaw = mergedProfile.usernameChangedAt || profile.usernameChangedAt || ''
 
     if (normalizedUsername.length < 3) {
       throw new Error('Gebruikersnaam moet minimaal 3 tekens zijn.')
@@ -726,6 +774,19 @@ function App() {
       throw new Error('Deze gebruikersnaam is al in gebruik.')
     }
 
+    if (usernameChanged && usernameChangedAtRaw) {
+      const lastChangedAt = new Date(usernameChangedAtRaw).getTime()
+      if (Number.isFinite(lastChangedAt)) {
+        const cooldownMs = 30 * 24 * 60 * 60 * 1000
+        const nextAllowedAt = new Date(lastChangedAt + cooldownMs)
+        if (Date.now() < nextAllowedAt.getTime()) {
+          throw new Error(
+            `Je kunt je gebruikersnaam niet te vaak wijzigen. Volgende wijziging mogelijk na ${nextAllowedAt.toLocaleDateString('nl-NL')}.`
+          )
+        }
+      }
+    }
+
     if (hasSupabaseConfig && supabase && session?.user?.id) {
       const { data: duplicateUserRows, error: duplicateUserError } = await supabase
         .from('profiles')
@@ -742,7 +803,7 @@ function App() {
         throw new Error('Deze gebruikersnaam is al in gebruik.')
       }
 
-      await supabase.from('profiles').upsert({
+      const payload = {
         id: session.user.id,
         username: normalizedUsername,
         display_name: normalizedDisplayName,
@@ -751,21 +812,47 @@ function App() {
         avatar_url: mergedProfile.avatarUrl || '',
         favorite_genres: mergedProfile.favoriteGenres,
         favorite_artists: mergedProfile.favoriteArtists,
-      })
+        username_changed_at: usernameChanged ? new Date().toISOString() : usernameChangedAtRaw || null,
+      }
+      const { error: upsertError } = await supabase.from('profiles').upsert(payload)
+      if (upsertError) {
+        await supabase.from('profiles').upsert({
+          id: session.user.id,
+          username: normalizedUsername,
+          display_name: normalizedDisplayName,
+          bio: mergedProfile.bio,
+          city: mergedProfile.city,
+          avatar_url: mergedProfile.avatarUrl || '',
+          favorite_genres: mergedProfile.favoriteGenres,
+          favorite_artists: mergedProfile.favoriteArtists,
+        })
+      }
       storeEventRadius(session.user.id, Number(mergedProfile.eventRadiusKm ?? defaultProfile.eventRadiusKm))
       setProfile({
         ...mergedProfile,
         username: normalizedUsername,
         displayName: normalizedDisplayName,
+        usernameChangedAt: usernameChanged ? new Date().toISOString() : usernameChangedAtRaw || '',
         id: session.user.id,
       })
       return
     }
 
-    setProfile({ ...mergedProfile, username: normalizedUsername, displayName: normalizedDisplayName })
+    const nextChangedAt = usernameChanged ? new Date().toISOString() : usernameChangedAtRaw || ''
+    setProfile({
+      ...mergedProfile,
+      username: normalizedUsername,
+      displayName: normalizedDisplayName,
+      usernameChangedAt: nextChangedAt,
+    })
     storeEventRadius(null, Number(mergedProfile.eventRadiusKm ?? defaultProfile.eventRadiusKm))
-    await saveProfile({ ...mergedProfile, username: normalizedUsername, displayName: normalizedDisplayName })
-  }, [session, socialFriends])
+    await saveProfile({
+      ...mergedProfile,
+      username: normalizedUsername,
+      displayName: normalizedDisplayName,
+      usernameChangedAt: nextChangedAt,
+    })
+  }, [profile.username, profile.usernameChangedAt, session, socialFriends])
 
   const handleUpdateCheckIn = useCallback(
     async (checkInId, updates) => {
@@ -842,6 +929,35 @@ function App() {
     }
   }, [])
 
+  const handleDeleteAccount = useCallback(async () => {
+    if (!(hasSupabaseConfig && supabase && session?.user?.id)) {
+      throw new Error('Account verwijderen werkt alleen in online mode.')
+    }
+
+    const confirmed = window.confirm(
+      'Weet je zeker dat je je account wilt verwijderen? Je check-ins, likes, comments en profielgegevens worden verwijderd.'
+    )
+    if (!confirmed) return
+
+    await Promise.all([
+      supabase.from('check_in_likes').delete().eq('user_id', session.user.id),
+      supabase.from('check_in_comments').delete().eq('user_id', session.user.id),
+      supabase.from('follows').delete().eq('follower_id', session.user.id),
+      supabase.from('follows').delete().eq('following_id', session.user.id),
+      supabase.from('check_ins').delete().eq('user_id', session.user.id),
+      supabase.from('profiles').delete().eq('id', session.user.id),
+    ])
+
+    const { error: deleteAuthError } = await supabase.rpc('delete_my_account')
+    await supabase.auth.signOut()
+
+    if (deleteAuthError) {
+      window.alert(
+        'Je profieldata is verwijderd. Volledige auth-account verwijdering vereist een Supabase SQL functie delete_my_account (kan ik zo voor je geven).'
+      )
+    }
+  }, [session?.user?.id])
+
   const handleDeleteCheckIn = useCallback(
     async (checkInId) => {
       setMyCheckIns((prev) => prev.filter((item) => item.id !== checkInId))
@@ -887,6 +1003,14 @@ function App() {
     [followingIds, session?.user?.id]
   )
 
+  const profileNeedsCompletion = useMemo(() => {
+    if (!session?.user?.id) return false
+    return !String(profile.displayName || '').trim() ||
+      !String(profile.username || '').trim() ||
+      !String(profile.favoriteGenres || '').trim() ||
+      !String(profile.favoriteArtists || '').trim()
+  }, [profile.displayName, profile.favoriteArtists, profile.favoriteGenres, profile.username, session?.user?.id])
+
   const activeView = useMemo(() => {
     if (activeTab === 'checkin') {
       return <CheckInTab onAddCheckIn={handleAddCheckIn} />
@@ -922,6 +1046,8 @@ function App() {
           profile={profile}
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
+          onDeleteAccount={handleDeleteAccount}
+          forceProfileCompletion={profileNeedsCompletion}
           friends={socialFriends}
           followingIdsExternal={followingIds}
           followerIdsExternal={followerIds}
@@ -946,7 +1072,7 @@ function App() {
         onFeedMutated={() => requestSocialFeedRefresh(true)}
       />
     )
-  }, [activeTab, badges, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, requestSocialFeedRefresh, socialFeedItems, socialFriends])
+  }, [activeTab, badges, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteAccount, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, profileNeedsCompletion, requestSocialFeedRefresh, socialFeedItems, socialFriends])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
