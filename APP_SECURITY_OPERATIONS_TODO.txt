@@ -20,16 +20,16 @@
     - Bevestig dat alleen publishable key in frontend gebruikt wordt.
     - Controleer GitHub repo secrets op juistheid en minimum scope.
 
-[ ] Configureer betrouwbare transactional e-mail (later, production).
-    - Kies provider (bijv. Resend/Postmark/SES).
-    - Koop en koppel domein voor no-reply afzender.
-    - Stel SPF, DKIM en DMARC in.
-    - Koppel Custom SMTP in Supabase Auth.
-    - Test signup/confirm/reset mails op deliverability.
+[x] Configureer betrouwbare transactional e-mail (2026-04-30).
+    - Kies provider (bijv. Resend/Postmark/SES). (Resend gekozen 2026-04-30)
+    - Koop en koppel domein voor no-reply afzender. (lyyve.app gekoppeld 2026-04-30)
+    - Stel SPF, DKIM en DMARC in. (ingesteld 2026-04-30)
+    - Koppel Custom SMTP in Supabase Auth. (smtp.resend.com actief 2026-04-30)
+    - Test signup/confirm/reset mails op deliverability. (flow getest 2026-04-30; inbox placement verder monitoren)
 
-[ ] Verbeter auth UX en foutafhandeling.
+[x] Verbeter auth UX en foutafhandeling. (2026-04-30)
     - Voeg duidelijke states toe voor "mail verzonden", "token verlopen", "link al gebruikt". (grotendeels ok 2026-04-29)
-    - Voeg rate-limit en lockout messaging toe op login failures.
+    - Voeg rate-limit en lockout messaging toe op login failures. (ok 2026-04-30)
     - Voeg resend confirmation actie toe. (ok 2026-04-29)
 
 [ ] Implementeer social auth roadmap (gefaseerd).

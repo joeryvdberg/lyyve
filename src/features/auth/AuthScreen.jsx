@@ -53,6 +53,17 @@ function mapAuthErrorMessage(error) {
   if (raw.includes('invalid login credentials')) {
     return 'Onjuiste inloggegevens. Controleer je e-mail en wachtwoord.'
   }
+  if (
+    raw.includes('too many requests') ||
+    raw.includes('rate limit') ||
+    raw.includes('over_email_send_rate_limit') ||
+    raw.includes('over_request_rate_limit')
+  ) {
+    return 'Te veel pogingen in korte tijd. Wacht even en probeer het daarna opnieuw.'
+  }
+  if (raw.includes('email not confirmed') || raw.includes('email_not_confirmed')) {
+    return 'Je e-mailadres is nog niet bevestigd. Check je inbox of klik op resend confirmation.'
+  }
   return error?.message || 'Inloggen mislukt.'
 }
 
