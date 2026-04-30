@@ -165,6 +165,7 @@ export default function CheckInTab({ onAddCheckIn }) {
   const [note, setNote] = useState('')
   const [photoDataUrls, setPhotoDataUrls] = useState([])
   const [pendingCropSource, setPendingCropSource] = useState('')
+  const [cropQueue, setCropQueue] = useState([])
   const [artistPool, setArtistPool] = useState([])
   const [venuePool, setVenuePool] = useState([])
 
@@ -253,15 +254,28 @@ export default function CheckInTab({ onAddCheckIn }) {
     setRating(8.0)
     setPhotoDataUrls([])
     setPendingCropSource('')
+    setCropQueue([])
   }
 
   const handlePhotoChange = async (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => setPendingCropSource(String(reader.result ?? ''))
-    reader.readAsDataURL(file)
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/'))
+    if (!files.length) return
+    const dataUrls = await Promise.all(
+      files.map(
+        (file) =>
+          new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(String(reader.result ?? ''))
+            reader.readAsDataURL(file)
+          })
+      )
+    )
+    if (!pendingCropSource) {
+      setPendingCropSource(dataUrls[0])
+      setCropQueue((prev) => [...prev, ...dataUrls.slice(1)])
+    } else {
+      setCropQueue((prev) => [...prev, ...dataUrls])
+    }
     event.target.value = ''
   }
 
@@ -340,6 +354,7 @@ export default function CheckInTab({ onAddCheckIn }) {
             Foto van je moment
             <input
               type="file"
+              multiple
               accept="image/*"
               onChange={handlePhotoChange}
               className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
@@ -395,10 +410,16 @@ export default function CheckInTab({ onAddCheckIn }) {
       {pendingCropSource && (
         <ImageCropModal
           source={pendingCropSource}
-          onCancel={() => setPendingCropSource('')}
+          onCancel={() => {
+            const [next, ...rest] = cropQueue
+            setPendingCropSource(next || '')
+            setCropQueue(rest)
+          }}
           onConfirm={(croppedDataUrl) => {
             setPhotoDataUrls((prev) => [...prev, croppedDataUrl])
-            setPendingCropSource('')
+            const [next, ...rest] = cropQueue
+            setPendingCropSource(next || '')
+            setCropQueue(rest)
           }}
         />
       )}
