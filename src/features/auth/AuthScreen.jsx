@@ -287,6 +287,17 @@ export default function AuthScreen({ forceReset = false }) {
             {mode === 'signup' ? 'Maak je account' : mode === 'reset' ? 'Nieuw wachtwoord' : 'Log in'}
             <span className="text-cyan-300">.</span>
           </h1>
+          {mode === 'signup' && (
+            <div className="mt-3 rounded-xl border border-white/10 bg-zinc-950/60 p-3">
+              <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-zinc-400">
+                <span>Stap 1 van 2</span>
+                <span>Profiel + beveiliging</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                <div className="h-full w-1/2 rounded-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-sky-500" />
+              </div>
+            </div>
+          )}
           <p className="mt-2 text-sm text-zinc-400">
             {mode === 'reset'
               ? 'Kies een veilig nieuw wachtwoord om weer in te loggen.'
