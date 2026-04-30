@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lyyve-app-shell-v1'
+const CACHE_NAME = 'lyyve-app-shell-v2'
 const APP_SHELL_URL = new URL('./index.html', self.location.href).pathname
 
 self.addEventListener('install', (event) => {

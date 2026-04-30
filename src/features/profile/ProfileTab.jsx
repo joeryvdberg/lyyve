@@ -4,6 +4,59 @@ import { evaluateBadges } from '../../lib/badges'
 import { cropFileToSquareDataUrl } from '../../lib/image'
 import PhotoCarousel from '../../components/common/PhotoCarousel'
 
+const CITY_SUGGESTIONS = [
+  'Amsterdam',
+  'Rotterdam',
+  'Den Haag',
+  'Utrecht',
+  'Eindhoven',
+  'Groningen',
+  'Tilburg',
+  'Almere',
+  'Breda',
+  'Nijmegen',
+  'Enschede',
+  'Haarlem',
+  'Arnhem',
+  'Zaanstad',
+  'Amersfoort',
+  'Apeldoorn',
+  'Hoofddorp',
+  'Leiden',
+  'Dordrecht',
+  'Zoetermeer',
+  'Zwolle',
+  'Maastricht',
+  'Delft',
+  'Leeuwarden',
+  'Den Bosch',
+  'Helmond',
+  'Amstelveen',
+  'Deventer',
+  'Venlo',
+  'Hilversum',
+  'Purmerend',
+  'Alkmaar',
+  'Zaandam',
+  'Vlaardingen',
+  'Hengelo',
+  'Roermond',
+  'Sittard',
+  'Gouda',
+  'Doetinchem',
+  'Middelburg',
+  'Lelystad',
+  'Heerlen',
+  'Oss',
+  'Assen',
+  'Tiel',
+  'Bergen op Zoom',
+  'Harderwijk',
+  'Emmen',
+  'Ede',
+  'Sneek',
+]
+
 function avatarInitials(displayName = '') {
   const parts = displayName
     .split(' ')
@@ -57,6 +110,11 @@ export default function ProfileTab({
         friend.displayName.toLowerCase().includes(query) || friend.username.toLowerCase().includes(query)
     )
   }, [friendSearchQuery, friends])
+  const citySuggestions = useMemo(() => {
+    const query = String(form.city || '').trim().toLowerCase()
+    if (!query) return CITY_SUGGESTIONS.slice(0, 8)
+    return CITY_SUGGESTIONS.filter((city) => city.toLowerCase().includes(query)).slice(0, 8)
+  }, [form.city])
 
   const friendStats = useMemo(() => {
     if (!selectedFriend) return null
@@ -309,6 +367,24 @@ export default function ProfileTab({
                 onChange={handleChange('city')}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
                 placeholder="Bijv. Amsterdam"
+                list="lyyve-city-suggestions"
+              />
+              <datalist id="lyyve-city-suggestions">
+                {citySuggestions.map((city) => (
+                  <option key={`city-suggestion-${city}`} value={city} />
+                ))}
+              </datalist>
+            </label>
+            <label className="block text-sm text-zinc-300">
+              Straal voor events ontdekken ({Number(form.eventRadiusKm ?? 75)} km)
+              <input
+                type="range"
+                min="25"
+                max="250"
+                step="25"
+                value={Number(form.eventRadiusKm ?? 75)}
+                onChange={(event) => setForm((prev) => ({ ...prev, eventRadiusKm: Number(event.target.value) }))}
+                className="mt-1 w-full accent-cyan-400"
               />
             </label>
             <button

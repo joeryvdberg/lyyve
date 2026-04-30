@@ -163,11 +163,19 @@ const UPCOMING_EVENTS = [
   },
 ]
 
-const CITY_NEIGHBORS = {
-  amsterdam: ['amsterdam', 'utrecht', 'haarlem', 'zaandam', 'rotterdam'],
-  rotterdam: ['rotterdam', 'den haag', 'delft', 'amsterdam', 'utrecht'],
-  utrecht: ['utrecht', 'amsterdam', 'amersfoort', 'rotterdam'],
-  eindhoven: ['eindhoven', 'tilburg', 'den bosch', 'breda'],
+const CITY_RADIUS_GROUPS = [
+  ['amsterdam', 'utrecht', 'haarlem', 'zaandam', 'amstelveen', 'hoofddorp'],
+  ['rotterdam', 'den haag', 'delft', 'leiden', 'dordrecht', 'gouda'],
+  ['eindhoven', 'tilburg', 'den bosch', 'breda', 'helmond'],
+  ['groningen', 'arnhem', 'nijmegen', 'enschede', 'zwolle', 'leeuwarden', 'maastricht'],
+]
+
+function getTargetCities(cityKey, radiusKm) {
+  const normalizedCity = normalizeText(cityKey || '')
+  const radius = Number(radiusKm || 75)
+  const selectedGroups = radius <= 50 ? 1 : radius <= 100 ? 2 : radius <= 175 ? 3 : 4
+  const pool = CITY_RADIUS_GROUPS.slice(0, selectedGroups).flat()
+  return [...new Set([normalizedCity, ...pool].filter(Boolean))]
 }
 
 async function fetchBandsintownArtistEvents(artistName, appId) {
@@ -409,13 +417,13 @@ export default function ExploreTab({
 
   const nearbyUpcoming = useMemo(() => {
     const cityKey = normalizeText(profile?.city || '')
-    const targetCities = new Set(CITY_NEIGHBORS[cityKey] ?? [cityKey || 'amsterdam'])
+    const targetCities = new Set(getTargetCities(cityKey || 'amsterdam', profile?.eventRadiusKm))
     const source = liveEvents.length > 0 ? liveEvents : UPCOMING_EVENTS
     return source
       .filter((event) => targetCities.has(normalizeText(event.city)))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 5)
-  }, [liveEvents, profile?.city])
+  }, [liveEvents, profile?.city, profile?.eventRadiusKm])
 
   const locationLabel = profile?.city?.trim() || 'jouw regio'
 
@@ -428,7 +436,7 @@ export default function ExploreTab({
   useEffect(() => {
     let mounted = true
     const cityKey = normalizeText(profile?.city || '')
-    const targetCities = CITY_NEIGHBORS[cityKey] ?? [cityKey || 'amsterdam']
+    const targetCities = getTargetCities(cityKey || 'amsterdam', profile?.eventRadiusKm)
 
     async function loadLiveEvents() {
       try {
@@ -475,7 +483,7 @@ export default function ExploreTab({
     return () => {
       mounted = false
     }
-  }, [artists, profile?.city, profile?.favoriteArtists])
+  }, [artists, profile?.city, profile?.eventRadiusKm, profile?.favoriteArtists])
 
   useEffect(() => {
     if (!expandedEventId) return

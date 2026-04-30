@@ -108,6 +108,22 @@ const defaultProfile = {
   favoriteGenres: 'House, Techno, Indie Dance',
   favoriteArtists: 'BICEP, Fred again.., The Blaze',
   city: 'Amsterdam',
+  eventRadiusKm: 75,
+}
+
+function loadStoredEventRadius(userId) {
+  if (typeof window === 'undefined') return null
+  const key = userId ? `lyyve-event-radius:${userId}` : 'lyyve-event-radius'
+  const raw = window.localStorage.getItem(key)
+  if (!raw) return null
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function storeEventRadius(userId, radiusKm) {
+  if (typeof window === 'undefined') return
+  const key = userId ? `lyyve-event-radius:${userId}` : 'lyyve-event-radius'
+  window.localStorage.setItem(key, String(radiusKm))
 }
 
 function avatarInitials(displayName = '') {
@@ -460,6 +476,7 @@ function App() {
         const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
         if (!mounted) return
         if (data) {
+          const storedRadius = loadStoredEventRadius(session.user.id)
           setProfile({
             ...defaultProfile,
             id: data.id,
@@ -470,6 +487,7 @@ function App() {
             avatarUrl: data.avatar_url || '',
             favoriteGenres: data.favorite_genres || defaultProfile.favoriteGenres,
             favoriteArtists: data.favorite_artists || defaultProfile.favoriteArtists,
+            eventRadiusKm: storedRadius ?? defaultProfile.eventRadiusKm,
             updatedAt: data.updated_at || '',
           })
         } else {
@@ -606,11 +624,13 @@ function App() {
         favorite_genres: mergedProfile.favoriteGenres,
         favorite_artists: mergedProfile.favoriteArtists,
       })
+      storeEventRadius(session.user.id, Number(mergedProfile.eventRadiusKm ?? defaultProfile.eventRadiusKm))
       setProfile({ ...mergedProfile, id: session.user.id })
       return
     }
 
     setProfile(mergedProfile)
+    storeEventRadius(null, Number(mergedProfile.eventRadiusKm ?? defaultProfile.eventRadiusKm))
     await saveProfile(mergedProfile)
   }, [session])
 
