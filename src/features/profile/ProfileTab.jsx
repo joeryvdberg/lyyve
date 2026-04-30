@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
+import { getCatalogEntries, getFeedInteractions, saveFeedInteraction } from '../../lib/db'
 import { evaluateBadges } from '../../lib/badges'
 import { cropFileToSquareDataUrl } from '../../lib/image'
 import PhotoCarousel from '../../components/common/PhotoCarousel'
@@ -162,6 +162,50 @@ function avatarInitials(displayName = '') {
   return initials.join('')
 }
 
+function normalizeText(value) {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function getLabel(value) {
+  return typeof value === 'string' ? value : value?.name ?? ''
+}
+
+function getPopularity(value) {
+  if (typeof value === 'string') return 0
+  return Number(value?.popularity ?? 0)
+}
+
+function mergeByName(primary, secondary) {
+  const map = new Map()
+  for (const item of [...primary, ...secondary]) {
+    const name = getLabel(item).trim()
+    if (!name) continue
+    const key = normalizeText(name)
+    const existing = map.get(key)
+    if (!existing) {
+      map.set(key, item)
+      continue
+    }
+    if (getPopularity(item) > getPopularity(existing)) {
+      map.set(key, item)
+    }
+  }
+  return [...map.values()]
+}
+
+function rankArtistSuggestions(pool, query) {
+  return pool
+    .map((item) => getLabel(item).trim())
+    .filter(Boolean)
+    .filter((name) => normalizeText(name).includes(query))
+    .sort((a, b) => a.localeCompare(b))
+    .slice(0, 8)
+}
+
 export default function ProfileTab({
   profile,
   onSaveProfile,
@@ -188,6 +232,7 @@ export default function ProfileTab({
   const [openComments, setOpenComments] = useState({})
   const [commentErrors, setCommentErrors] = useState({})
   const [saveError, setSaveError] = useState('')
+  const [artistPool, setArtistPool] = useState([])
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(profile)
@@ -211,6 +256,14 @@ export default function ProfileTab({
     if (!query) return CITY_SUGGESTIONS.slice(0, 8)
     return CITY_SUGGESTIONS.filter((city) => city.toLowerCase().includes(query)).slice(0, 8)
   }, [form.city])
+  const favoriteArtistSuggestions = useMemo(() => {
+    const raw = String(form.favoriteArtists || '')
+    const segments = raw.split(',')
+    const activeToken = normalizeText(segments[segments.length - 1] || '')
+    if (!activeToken) return []
+    const selectedNames = new Set(segments.map((entry) => normalizeText(entry)).filter(Boolean))
+    return rankArtistSuggestions(artistPool, activeToken).filter((name) => !selectedNames.has(normalizeText(name)))
+  }, [artistPool, form.favoriteArtists])
 
   const friendStats = useMemo(() => {
     if (!selectedFriend) return null
@@ -255,6 +308,29 @@ export default function ProfileTab({
       if (mounted) setInteractions(stored)
     }
     loadInteractions()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    async function loadArtists() {
+      try {
+        const datasetBase = import.meta.env.BASE_URL
+        const [response, communityArtists] = await Promise.all([
+          fetch(`${datasetBase}artists.json`),
+          getCatalogEntries('artist'),
+        ])
+        if (!response.ok || !mounted) return
+        const data = await response.json()
+        const baseArtists = Array.isArray(data.artists) ? data.artists : []
+        if (mounted) setArtistPool(mergeByName(communityArtists, baseArtists))
+      } catch {
+        // Keep profile editing usable even when artist dataset fails.
+      }
+    }
+    loadArtists()
     return () => {
       mounted = false
     }
@@ -385,6 +461,21 @@ export default function ProfileTab({
     setSaveState('idle')
   }
 
+  const applyFavoriteArtistSuggestion = (artistName) => {
+    setForm((prev) => {
+      const raw = String(prev.favoriteArtists || '')
+      const segments = raw
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+      if (segments.length === 0) return { ...prev, favoriteArtists: artistName }
+      segments[segments.length - 1] = artistName
+      return { ...prev, favoriteArtists: `${segments.join(', ')}, ` }
+    })
+    setSaveState('idle')
+    setSaveError('')
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!hasChanges) return
@@ -471,6 +562,20 @@ export default function ProfileTab({
                 className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
                 placeholder="Bijv. BICEP, The Blaze"
               />
+              {favoriteArtistSuggestions.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {favoriteArtistSuggestions.map((artist) => (
+                    <button
+                      key={`favorite-artist-suggestion-${artist}`}
+                      type="button"
+                      onClick={() => applyFavoriteArtistSuggestion(artist)}
+                      className="rounded-full border border-white/10 bg-zinc-950 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-sky-400/70 hover:text-sky-200"
+                    >
+                      {artist}
+                    </button>
+                  ))}
+                </div>
+              )}
             </label>
             <label className="block text-sm text-zinc-300">
               Stad
