@@ -43,7 +43,7 @@
     - Voeg content-type controls en publieke/private bucket keuze toe.
 
 [ ] Operational readiness en observability.
-    - Definieer incident-procedure voor auth storingen.
+    - Definieer incident-procedure voor auth storingen. (basis runbook toegevoegd in SECURITY_RUNBOOK.md op 2026-04-30)
     - Voeg foutlogging/monitoring toe (frontend + backend events).
     - Maak release checklist voor auth changes (lint/build/manual smoke test).
     - Plan wekelijks usage-checks:
@@ -63,3 +63,7 @@
     - Deze file blijft de single source of truth voor open acties.
     - Bij elke afgeronde taak: [ ] -> [x] + datum noteren.
     - Bij nieuwe requirements: nieuw item toevoegen met concrete subacties.
+
+[x] Bevestig dat frontend alleen publishable Supabase key gebruikt. (2026-04-30)
+    - Code-check: alleen VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY in frontend.
+    - Geen service role key referenties gevonden in app-code.

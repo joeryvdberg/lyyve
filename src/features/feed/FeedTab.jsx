@@ -294,11 +294,10 @@ export default function FeedTab({
   return (
     <section className="space-y-4" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <h2 className="text-2xl font-semibold text-white">
-        Vriendenfeed<span className="text-cyan-300">.</span>
+        Feed<span className="text-cyan-300">.</span>
       </h2>
       <div className="rounded-xl border border-white/10 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-400">
-        <div className="flex items-center justify-between gap-2">
-          <span>{pullDistance > 70 ? 'Laat los om te verversen' : 'Pull omlaag om te verversen'}</span>
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={triggerManualRefresh}
