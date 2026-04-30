@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { compressImageDataUrl } from '../../lib/image'
+import { compressImageDataUrlToMaxBytes } from '../../lib/image'
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -42,7 +42,10 @@ export default function ImageCropModal({ source, onCancel, onConfirm }) {
     const srcY = clamp((srcHeight - cropSide) / 2 + (offsetY / 100) * maxOffsetY, 0, srcHeight - cropSide)
 
     ctx.drawImage(image, srcX, srcY, cropSide, cropSide, 0, 0, size, size)
-    const compressed = await compressImageDataUrl(canvas.toDataURL('image/jpeg', 0.84), { size: 1024, quality: 0.8 })
+    const compressed = await compressImageDataUrlToMaxBytes(canvas.toDataURL('image/jpeg', 0.84), {
+      maxBytes: 2 * 1024 * 1024,
+      maxSideStart: 1024,
+    })
     onConfirm(compressed)
   }
 

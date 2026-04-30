@@ -50,8 +50,8 @@ const MAINSTREAM_EVENTS = new Set(
   ].map((name) => name.toLowerCase())
 )
 
-const MAX_UPLOAD_FILES = 5
-const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024
+const MAX_UPLOAD_FILES = 3
+const MAX_SOURCE_FILE_SIZE_BYTES = 25 * 1024 * 1024
 
 function normalizeText(value) {
   return value
@@ -263,7 +263,7 @@ export default function CheckInTab({ onAddCheckIn }) {
   const handlePhotoChange = async (event) => {
     const files = Array.from(event.target.files ?? [])
       .filter((file) => file.type.startsWith('image/'))
-      .filter((file) => file.size <= MAX_FILE_SIZE_BYTES)
+      .filter((file) => file.size <= MAX_SOURCE_FILE_SIZE_BYTES)
       .slice(0, MAX_UPLOAD_FILES)
     if (!files.length) return
     const dataUrls = await Promise.all(
@@ -365,6 +365,7 @@ export default function CheckInTab({ onAddCheckIn }) {
               onChange={handlePhotoChange}
               className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
             />
+            <p className="mt-1 text-[11px] text-zinc-500">Max 3 foto's. We comprimeren elke foto automatisch naar ongeveer max 2MB.</p>
             {photoDataUrls.length > 0 && (
               <div className="mt-2 space-y-2">
                 <PhotoCarousel photos={photoDataUrls} altBase="Check-in preview" />
