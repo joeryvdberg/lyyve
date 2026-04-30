@@ -47,6 +47,13 @@ export default function FeedTab({
         isFriendPost: false,
         friendId: '',
       }))
+  const sortedFeedItems = useMemo(
+    () =>
+      [...renderedFeedItems].sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      ),
+    [renderedFeedItems]
+  )
 
   const defaultInteractions = useMemo(() => ({}), [])
 
@@ -318,7 +325,7 @@ export default function FeedTab({
         </p>
       )}
       <div className="space-y-3">
-        {renderedFeedItems.map((item, index) => (
+        {sortedFeedItems.map((item, index) => (
           <article
             key={item.id ?? `${item.user}-${item.artist}-${index}`}
             className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/70 shadow-xl shadow-fuchsia-500/10 backdrop-blur-xl"

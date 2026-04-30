@@ -1082,32 +1082,6 @@ export default function ProfileTab({
             Uitloggen
           </button>
         )}
-        {onDeleteAccount && (
-          <div className="relative ml-2 inline-block">
-            <button
-              type="button"
-              onClick={() => setShowAccountMenu((prev) => !prev)}
-              className="mt-4 rounded-xl border border-white/10 bg-zinc-950/55 px-2.5 py-2 text-xs font-medium text-zinc-400 transition hover:border-white/20 hover:text-zinc-300"
-              aria-label="Account acties"
-            >
-              Meer
-            </button>
-            {showAccountMenu && (
-              <div className="absolute right-0 top-14 z-20 w-44 overflow-hidden rounded-xl border border-white/15 bg-zinc-900/95 shadow-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAccountMenu(false)
-                    onDeleteAccount()
-                  }}
-                  className="block w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-white/5"
-                >
-                  Account verwijderen
-                </button>
-              </div>
-            )}
-          </div>
-        )}
       </article>
 
       <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
@@ -1497,6 +1471,32 @@ export default function ProfileTab({
                   ))}
             </div>
           </article>
+        </div>
+      )}
+
+      {onDeleteAccount && (
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={() => setShowAccountMenu((prev) => !prev)}
+            className="text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-400 hover:underline"
+          >
+            Account-opties
+          </button>
+          {showAccountMenu && (
+            <div className="mx-auto mt-2 w-full max-w-xs overflow-hidden rounded-xl border border-white/10 bg-zinc-900/70">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAccountMenu(false)
+                  onDeleteAccount()
+                }}
+                className="block w-full px-3 py-2 text-center text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-300"
+              >
+                Account verwijderen
+              </button>
+            </div>
+          )}
         </div>
       )}
 
