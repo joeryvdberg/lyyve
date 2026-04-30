@@ -422,7 +422,7 @@ function App() {
         .from('profiles')
         .select('id, username, display_name, bio, avatar_url, city, favorite_genres, favorite_artists')
         .neq('id', session.user.id)
-        .limit(200)
+        .limit(1000)
 
       if (!mounted) return
 
