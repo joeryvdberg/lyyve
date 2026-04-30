@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BottomNav from './components/layout/BottomNav'
 import AuthScreen from './features/auth/AuthScreen'
 import CheckInTab from './features/checkin/CheckInTab'
@@ -195,6 +195,18 @@ function App() {
   const [splashMinElapsed, setSplashMinElapsed] = useState(false)
   const [splashHiding, setSplashHiding] = useState(false)
   const [splashGone, setSplashGone] = useState(false)
+  const [socialFeedRefreshTick, setSocialFeedRefreshTick] = useState(0)
+  const lastSocialFeedRefreshAtRef = useRef(0)
+  const socialFeedRefreshCooldownMs = 12_000
+
+  const requestSocialFeedRefresh = useCallback((force = false) => {
+    const now = Date.now()
+    const elapsed = now - lastSocialFeedRefreshAtRef.current
+    if (!force && elapsed < socialFeedRefreshCooldownMs) return false
+    lastSocialFeedRefreshAtRef.current = now
+    setSocialFeedRefreshTick((prev) => prev + 1)
+    return true
+  }, [])
 
   useEffect(() => {
     if (!hasSupabaseConfig || !supabase) return
@@ -492,7 +504,28 @@ function App() {
     return () => {
       mounted = false
     }
-  }, [followingIds, myCheckIns, profile.displayName, profile.username, session?.user?.id])
+  }, [followingIds, myCheckIns, profile.displayName, profile.username, session?.user?.id, socialFeedRefreshTick])
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !supabase || !session?.user?.id) return
+
+    function handleWindowFocus() {
+      requestSocialFeedRefresh(false)
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        requestSocialFeedRefresh(false)
+      }
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [requestSocialFeedRefresh, session?.user?.id])
 
   useEffect(() => {
     let mounted = true
@@ -658,7 +691,8 @@ function App() {
       saveCatalogEntry('artist', newCheckIn.artist),
       saveCatalogEntry('place', newCheckIn.venue),
     ])
-  }, [session])
+    requestSocialFeedRefresh(true)
+  }, [requestSocialFeedRefresh, session])
 
   const handleSaveProfile = useCallback(async (nextProfile) => {
     const mergedProfile = { ...defaultProfile, ...nextProfile, id: 'me' }
@@ -782,8 +816,9 @@ function App() {
       }
 
       await Promise.all([saveCatalogEntry('artist', merged.artist), saveCatalogEntry('place', merged.venue)])
+      requestSocialFeedRefresh(true)
     },
-    [myCheckIns, session]
+    [myCheckIns, requestSocialFeedRefresh, session]
   )
 
   const handleSignOut = useCallback(async () => {
@@ -800,8 +835,9 @@ function App() {
       } else {
         await deleteCheckIn(checkInId)
       }
+      requestSocialFeedRefresh(true)
     },
-    [session]
+    [requestSocialFeedRefresh, session]
   )
 
   const handleOpenProfileFromFeed = useCallback((friendId = '') => {
@@ -891,9 +927,11 @@ function App() {
         onUpdateCheckIn={handleUpdateCheckIn}
         onDeleteCheckIn={handleDeleteCheckIn}
         onOpenProfile={handleOpenProfileFromFeed}
+        onManualRefresh={requestSocialFeedRefresh}
+        onFeedMutated={() => requestSocialFeedRefresh(true)}
       />
     )
-  }, [activeTab, badges, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, socialFeedItems, socialFriends])
+  }, [activeTab, badges, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, requestSocialFeedRefresh, socialFeedItems, socialFriends])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone

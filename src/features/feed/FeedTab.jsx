@@ -13,6 +13,8 @@ export default function FeedTab({
   onUpdateCheckIn,
   onDeleteCheckIn,
   onOpenProfile,
+  onManualRefresh,
+  onFeedMutated,
 }) {
   const [interactions, setInteractions] = useState({})
   const [commentDrafts, setCommentDrafts] = useState({})
@@ -21,6 +23,9 @@ export default function FeedTab({
   const [editingId, setEditingId] = useState('')
   const [menuOpenId, setMenuOpenId] = useState('')
   const [editDraft, setEditDraft] = useState({ artist: '', venue: '', note: '', rating: 8, photoDataUrl: '' })
+  const [pullStartY, setPullStartY] = useState(0)
+  const [pullDistance, setPullDistance] = useState(0)
+  const [refreshHint, setRefreshHint] = useState('')
 
   const renderedFeedItems = feedItems.length
     ? feedItems
@@ -148,6 +153,7 @@ export default function FeedTab({
         } else {
           supabase.from('check_in_likes').delete().eq('check_in_id', itemId).eq('user_id', currentUser.id)
         }
+        onFeedMutated?.()
       } else {
         saveFeedInteraction(itemId, next[itemId])
       }
@@ -190,6 +196,7 @@ export default function FeedTab({
           user_id: currentUser.id,
           content: comment,
         })
+        onFeedMutated?.()
       } else {
         saveFeedInteraction(itemId, next[itemId])
       }
@@ -257,11 +264,51 @@ export default function FeedTab({
     setMenuOpenId('')
   }
 
+  async function triggerManualRefresh() {
+    if (!onManualRefresh) return
+    const refreshed = onManualRefresh(false)
+    setRefreshHint(refreshed ? 'Feed vernieuwd.' : 'Even wachten voor je opnieuw ververst.')
+    window.setTimeout(() => setRefreshHint(''), 2200)
+  }
+
+  function handleTouchStart(event) {
+    if (window.scrollY > 6) return
+    setPullStartY(event.touches[0]?.clientY ?? 0)
+    setPullDistance(0)
+  }
+
+  function handleTouchMove(event) {
+    if (!pullStartY || window.scrollY > 6) return
+    const currentY = event.touches[0]?.clientY ?? 0
+    const delta = Math.max(0, currentY - pullStartY)
+    setPullDistance(Math.min(100, delta))
+  }
+
+  function handleTouchEnd() {
+    const shouldRefresh = pullDistance > 70
+    setPullStartY(0)
+    setPullDistance(0)
+    if (shouldRefresh) triggerManualRefresh()
+  }
+
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <h2 className="text-2xl font-semibold text-white">
         Vriendenfeed<span className="text-cyan-300">.</span>
       </h2>
+      <div className="rounded-xl border border-white/10 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-400">
+        <div className="flex items-center justify-between gap-2">
+          <span>{pullDistance > 70 ? 'Laat los om te verversen' : 'Pull omlaag om te verversen'}</span>
+          <button
+            type="button"
+            onClick={triggerManualRefresh}
+            className="rounded-lg border border-white/15 px-2 py-1 text-[11px] text-zinc-300 hover:border-white/30"
+          >
+            Vernieuwen
+          </button>
+        </div>
+        {refreshHint && <p className="mt-1 text-[11px] text-cyan-300">{refreshHint}</p>}
+      </div>
       <p className="text-sm text-zinc-400">
         Hier zie je check-ins van vrienden: welke artiest ze zagen, hun score en opmerking.
       </p>

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getCatalogEntries } from '../../lib/db'
 import { hasSupabaseConfig, supabase } from '../../lib/supabase'
 
 function validatePassword(value) {
@@ -85,7 +86,44 @@ const GENRE_OPTIONS = [
   'Pop',
   'Rock',
   'Afro',
+  'Trance',
+  'Hardstyle',
+  'Disco',
+  'Latin',
+  'R&B',
+  'Soul',
+  'Ambient',
+  'Jazz',
+  'Funk',
+  'Afrobeats',
+  'UK Garage',
+  'Melodic Techno',
 ]
+
+function normalizeText(value) {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function getArtistLabel(value) {
+  return typeof value === 'string' ? value : value?.name ?? ''
+}
+
+function mergeArtistsByName(primary, secondary) {
+  const map = new Map()
+  for (const item of [...primary, ...secondary]) {
+    const name = getArtistLabel(item).trim()
+    if (!name) continue
+    const key = normalizeText(name)
+    if (!map.has(key)) {
+      map.set(key, item)
+    }
+  }
+  return [...map.values()]
+}
 
 export default function AuthScreen({ forceReset = false }) {
   const [email, setEmail] = useState('')
@@ -102,7 +140,46 @@ export default function AuthScreen({ forceReset = false }) {
   const [passwordError, setPasswordError] = useState('')
   const [resendLoading, setResendLoading] = useState(false)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState('')
+  const [artistPool, setArtistPool] = useState([])
   const urlAuthMessage = getAuthMessageFromUrl()
+  const favoriteArtistSuggestions = useMemo(() => {
+    if (mode !== 'signup') return []
+    const raw = String(favoriteArtists || '')
+    const segments = raw.split(',')
+    const token = normalizeText(segments[segments.length - 1] || '')
+    if (!token) return []
+
+    const selected = new Set(segments.map((entry) => normalizeText(entry)).filter(Boolean))
+    return artistPool
+      .map((item) => getArtistLabel(item).trim())
+      .filter(Boolean)
+      .filter((name) => normalizeText(name).includes(token))
+      .filter((name) => !selected.has(normalizeText(name)))
+      .slice(0, 8)
+  }, [artistPool, favoriteArtists, mode])
+
+  useEffect(() => {
+    let mounted = true
+    async function loadArtistPool() {
+      if (mode !== 'signup') return
+      try {
+        const [response, communityArtists] = await Promise.all([
+          fetch(`${import.meta.env.BASE_URL}artists.json`),
+          getCatalogEntries('artist'),
+        ])
+        if (!response.ok || !mounted) return
+        const data = await response.json()
+        const baseArtists = Array.isArray(data.artists) ? data.artists : []
+        if (mounted) setArtistPool(mergeArtistsByName(communityArtists, baseArtists))
+      } catch {
+        // Keep signup usable when artist dataset fails.
+      }
+    }
+    loadArtistPool()
+    return () => {
+      mounted = false
+    }
+  }, [mode])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -269,6 +346,19 @@ export default function AuthScreen({ forceReset = false }) {
     })
   }
 
+  function applyFavoriteArtistSuggestion(artistName) {
+    setFavoriteArtists((prev) => {
+      const raw = String(prev || '')
+      const segments = raw
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+      if (!segments.length) return artistName
+      segments[segments.length - 1] = artistName
+      return `${segments.join(', ')}, `
+    })
+  }
+
   if (pendingVerificationEmail) {
     return (
       <div className="relative min-h-svh overflow-hidden bg-[#05020f] text-zinc-100">
@@ -430,6 +520,20 @@ export default function AuthScreen({ forceReset = false }) {
                     className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
                     placeholder="Bijv. BICEP, Fred again.."
                   />
+                  {favoriteArtistSuggestions.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {favoriteArtistSuggestions.map((artist) => (
+                        <button
+                          key={`signup-artist-suggestion-${artist}`}
+                          type="button"
+                          onClick={() => applyFavoriteArtistSuggestion(artist)}
+                          className="rounded-full border border-white/10 bg-zinc-950 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-cyan-300/40 hover:text-cyan-100"
+                        >
+                          {artist}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </label>
               </>
             )}

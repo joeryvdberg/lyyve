@@ -50,6 +50,9 @@ const MAINSTREAM_EVENTS = new Set(
   ].map((name) => name.toLowerCase())
 )
 
+const MAX_UPLOAD_FILES = 5
+const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024
+
 function normalizeText(value) {
   return value
     .normalize('NFD')
@@ -258,7 +261,10 @@ export default function CheckInTab({ onAddCheckIn }) {
   }
 
   const handlePhotoChange = async (event) => {
-    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/'))
+    const files = Array.from(event.target.files ?? [])
+      .filter((file) => file.type.startsWith('image/'))
+      .filter((file) => file.size <= MAX_FILE_SIZE_BYTES)
+      .slice(0, MAX_UPLOAD_FILES)
     if (!files.length) return
     const dataUrls = await Promise.all(
       files.map(
