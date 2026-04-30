@@ -173,6 +173,11 @@ function containsBlockedNameLanguage(value = '') {
   return BLOCKED_NAME_PARTS.some((term) => compact.includes(term))
 }
 
+function metadataString(meta, key, fallback = '') {
+  const value = meta?.[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('feed')
   const [focusedFriendId, setFocusedFriendId] = useState('')
@@ -526,22 +531,31 @@ function App() {
             updatedAt: data.updated_at || '',
           })
         } else {
-          const fallbackName = session.user.email?.split('@')[0] || defaultProfile.username
+          const userMeta = session.user.user_metadata ?? {}
+          const fallbackName = metadataString(userMeta, 'username', session.user.email?.split('@')[0] || defaultProfile.username)
+          const fallbackDisplayName = metadataString(userMeta, 'display_name', defaultProfile.displayName)
+          const fallbackCity = metadataString(userMeta, 'city', defaultProfile.city)
+          const fallbackGenres = metadataString(userMeta, 'favorite_genres', defaultProfile.favoriteGenres)
+          const fallbackArtists = metadataString(userMeta, 'favorite_artists', defaultProfile.favoriteArtists)
           const initialProfile = {
             id: session.user.id,
             username: fallbackName,
-            display_name: defaultProfile.displayName,
+            display_name: fallbackDisplayName,
             bio: defaultProfile.bio,
-            city: defaultProfile.city,
+            city: fallbackCity,
             avatar_url: '',
-            favorite_genres: defaultProfile.favoriteGenres,
-            favorite_artists: defaultProfile.favoriteArtists,
+            favorite_genres: fallbackGenres,
+            favorite_artists: fallbackArtists,
           }
           await supabase.from('profiles').upsert(initialProfile)
           setProfile({
             ...defaultProfile,
             id: session.user.id,
             username: fallbackName,
+            displayName: fallbackDisplayName,
+            city: fallbackCity,
+            favoriteGenres: fallbackGenres,
+            favoriteArtists: fallbackArtists,
           })
         }
         if (mounted) setProfileLoaded(true)

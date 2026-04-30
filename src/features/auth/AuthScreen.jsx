@@ -56,15 +56,29 @@ function mapAuthErrorMessage(error) {
   return error?.message || 'Inloggen mislukt.'
 }
 
+function normalizeUsername(value) {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9._-]/g, '')
+}
+
 export default function AuthScreen({ forceReset = false }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [username, setUsername] = useState('')
+  const [city, setCity] = useState('')
+  const [favoriteGenres, setFavoriteGenres] = useState('')
+  const [favoriteArtists, setFavoriteArtists] = useState('')
   const [mode, setMode] = useState(forceReset ? 'reset' : 'login')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [resendLoading, setResendLoading] = useState(false)
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState('')
   const urlAuthMessage = getAuthMessageFromUrl()
 
   async function handleSubmit(event) {
@@ -76,6 +90,7 @@ export default function AuthScreen({ forceReset = false }) {
     setPasswordError('')
     try {
       const normalizedEmail = email.trim().toLowerCase()
+      const normalizedUsername = normalizeUsername(username)
       const redirectTo = getAuthRedirectUrl()
       if (mode === 'signup' || mode === 'reset') {
         const ruleCheck = validatePassword(password)
@@ -92,15 +107,48 @@ export default function AuthScreen({ forceReset = false }) {
       }
 
       if (mode === 'signup') {
+        if (displayName.trim().length < 2) {
+          setMessage('Vul een weergavenaam in van minimaal 2 tekens.')
+          setLoading(false)
+          return
+        }
+        if (normalizedUsername.length < 3) {
+          setMessage('Kies een gebruikersnaam van minimaal 3 tekens.')
+          setLoading(false)
+          return
+        }
+        if (city.trim().length < 2) {
+          setMessage('Vul je stad in om je profiel direct compleet te maken.')
+          setLoading(false)
+          return
+        }
+      }
+
+      if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
           options: {
             emailRedirectTo: redirectTo,
+            data: {
+              username: normalizedUsername,
+              display_name: displayName.trim(),
+              city: city.trim(),
+              favorite_genres: favoriteGenres.trim(),
+              favorite_artists: favoriteArtists.trim(),
+            },
           },
         })
         if (error) throw error
-        setMessage('Account aangemaakt. Je bent nu ingelogd of ontvangt een bevestiging via mail.')
+        setPendingVerificationEmail(normalizedEmail)
+        setPassword('')
+        setConfirmPassword('')
+        setDisplayName('')
+        setUsername('')
+        setCity('')
+        setFavoriteGenres('')
+        setFavoriteArtists('')
+        setMessage('')
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.updateUser({ password })
         if (error) throw error
@@ -163,7 +211,7 @@ export default function AuthScreen({ forceReset = false }) {
 
   async function handleResendConfirmation() {
     if (!hasSupabaseConfig || !supabase) return
-    const trimmedEmail = email.trim()
+    const trimmedEmail = (pendingVerificationEmail || email).trim()
     if (!trimmedEmail) {
       setMessage('Vul eerst je e-mail in en klik daarna opnieuw op resend confirmation.')
       return
@@ -185,6 +233,48 @@ export default function AuthScreen({ forceReset = false }) {
     } finally {
       setResendLoading(false)
     }
+  }
+
+  if (pendingVerificationEmail) {
+    return (
+      <div className="relative min-h-svh overflow-hidden bg-[#05020f] text-zinc-100">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,#fb718544,transparent_42%),radial-gradient(circle_at_70%_20%,#8b5cf666,transparent_48%),radial-gradient(circle_at_20%_80%,#22d3ee33,transparent_44%)]" />
+        <div className="relative z-10 mx-auto w-full max-w-md px-5 pt-14">
+          <img src={`${import.meta.env.BASE_URL}lyyve-logo-white-blue.png`} alt="Lyyve logo" className="mx-auto w-44" />
+          <article className="mt-8 rounded-3xl border border-white/10 bg-zinc-900/70 p-5 shadow-2xl shadow-fuchsia-500/10 backdrop-blur-xl">
+            <h1 className="text-2xl font-semibold text-white">
+              Verifieer je e-mail<span className="text-cyan-300">.</span>
+            </h1>
+            <p className="mt-3 text-sm text-zinc-300">
+              We hebben een verificatielink gestuurd naar <span className="font-semibold text-white">{pendingVerificationEmail}</span>.
+              Open je mail en klik op de link om je account te activeren.
+            </p>
+            <div className="mt-5 space-y-2">
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={resendLoading || !hasSupabaseConfig}
+                className="w-full rounded-xl border border-cyan-300/35 bg-cyan-500/20 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/70 disabled:opacity-60"
+              >
+                {resendLoading ? 'Bevestigingsmail versturen...' : 'Stuur verificatielink opnieuw'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingVerificationEmail('')
+                  setMode('login')
+                  setMessage('')
+                }}
+                className="w-full rounded-xl border border-white/15 bg-zinc-950/70 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-white/30"
+              >
+                Terug naar inloggen
+              </button>
+            </div>
+            {message && <p className="mt-3 text-xs text-zinc-300">{message}</p>}
+          </article>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -222,6 +312,60 @@ export default function AuthScreen({ forceReset = false }) {
                   required
                 />
               </label>
+            )}
+            {mode === 'signup' && (
+              <>
+                <label className="block text-sm text-zinc-300">
+                  Weergavenaam
+                  <input
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
+                    placeholder="Bijv. Joery van den Berg"
+                    required
+                  />
+                </label>
+                <label className="block text-sm text-zinc-300">
+                  Gebruikersnaam
+                  <input
+                    value={username}
+                    onChange={(event) => setUsername(normalizeUsername(event.target.value))}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
+                    placeholder="Bijv. joerylive"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    required
+                  />
+                </label>
+                <label className="block text-sm text-zinc-300">
+                  Stad
+                  <input
+                    value={city}
+                    onChange={(event) => setCity(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
+                    placeholder="Bijv. Amsterdam"
+                    required
+                  />
+                </label>
+                <label className="block text-sm text-zinc-300">
+                  Favoriete genres
+                  <input
+                    value={favoriteGenres}
+                    onChange={(event) => setFavoriteGenres(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
+                    placeholder="Bijv. House, Techno"
+                  />
+                </label>
+                <label className="block text-sm text-zinc-300">
+                  Favoriete artiesten
+                  <input
+                    value={favoriteArtists}
+                    onChange={(event) => setFavoriteArtists(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
+                    placeholder="Bijv. BICEP, Fred again.."
+                  />
+                </label>
+              </>
             )}
             <label className="block text-sm text-zinc-300">
               Wachtwoord
