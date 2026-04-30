@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getCatalogEntries } from '../../lib/db'
+import ImageCropModal from '../../components/common/ImageCropModal'
+import PhotoCarousel from '../../components/common/PhotoCarousel'
 
 const MAINSTREAM_ARTISTS = new Set(
   [
@@ -161,8 +163,8 @@ export default function CheckInTab({ onAddCheckIn }) {
   const [artistQuery, setArtistQuery] = useState('')
   const [venue, setVenue] = useState('')
   const [note, setNote] = useState('')
-  const [photoDataUrl, setPhotoDataUrl] = useState('')
-  const [photoName, setPhotoName] = useState('')
+  const [photoDataUrls, setPhotoDataUrls] = useState([])
+  const [pendingCropSource, setPendingCropSource] = useState('')
   const [artistPool, setArtistPool] = useState([])
   const [venuePool, setVenuePool] = useState([])
 
@@ -238,7 +240,8 @@ export default function CheckInTab({ onAddCheckIn }) {
       venue: location,
       note: description,
       rating,
-      photoDataUrl,
+      photoDataUrl: photoDataUrls[0] || '',
+      photoDataUrls,
     })
 
     setArtistPool((prev) => mergeByName([{ name: artist, source: 'Community', popularity: 100 }], prev))
@@ -248,22 +251,18 @@ export default function CheckInTab({ onAddCheckIn }) {
     setVenue('')
     setNote('')
     setRating(8.0)
-    setPhotoDataUrl('')
-    setPhotoName('')
+    setPhotoDataUrls([])
+    setPendingCropSource('')
   }
 
-  const handlePhotoChange = (event) => {
+  const handlePhotoChange = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) return
-
     const reader = new FileReader()
-    reader.onload = () => {
-      const result = String(reader.result ?? '')
-      setPhotoDataUrl(result)
-      setPhotoName(file.name)
-    }
+    reader.onload = () => setPendingCropSource(String(reader.result ?? ''))
     reader.readAsDataURL(file)
+    event.target.value = ''
   }
 
   const applyArtistSuggestion = (name) => {
@@ -345,10 +344,21 @@ export default function CheckInTab({ onAddCheckIn }) {
               onChange={handlePhotoChange}
               className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
             />
-            {photoName && <p className="mt-2 text-xs text-zinc-400">Gekozen bestand: {photoName}</p>}
-            {photoDataUrl && (
-              <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
-                <img src={photoDataUrl} alt="Check-in preview" className="h-44 w-full object-cover" />
+            {photoDataUrls.length > 0 && (
+              <div className="mt-2 space-y-2">
+                <PhotoCarousel photos={photoDataUrls} altBase="Check-in preview" />
+                <div className="flex flex-wrap gap-2">
+                  {photoDataUrls.map((photo, photoIndex) => (
+                    <button
+                      key={`remove-photo-${photoIndex}`}
+                      type="button"
+                      onClick={() => setPhotoDataUrls((prev) => prev.filter((_, index) => index !== photoIndex))}
+                      className="rounded-full border border-white/15 px-2.5 py-1 text-[11px] text-zinc-300 hover:border-white/35"
+                    >
+                      Verwijder foto {photoIndex + 1}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </label>
@@ -382,6 +392,16 @@ export default function CheckInTab({ onAddCheckIn }) {
           </button>
         </form>
       </div>
+      {pendingCropSource && (
+        <ImageCropModal
+          source={pendingCropSource}
+          onCancel={() => setPendingCropSource('')}
+          onConfirm={(croppedDataUrl) => {
+            setPhotoDataUrls((prev) => [...prev, croppedDataUrl])
+            setPendingCropSource('')
+          }}
+        />
+      )}
     </section>
   )
 }

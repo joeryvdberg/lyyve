@@ -6,10 +6,16 @@ body {
   font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: #05020f;
   color: #f4f4f5;
+  touch-action: manipulation;
 }
 
 #root {
   min-height: 100svh;
+  background: #05020f;
+}
+
+html {
+  background: #05020f;
 }
 
 @keyframes splashLogoReveal {

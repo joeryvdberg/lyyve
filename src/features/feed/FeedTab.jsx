@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { useEffect } from 'react'
 import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
 import { hasSupabaseConfig, supabase } from '../../lib/supabase'
+import { cropFileToSquareDataUrl } from '../../lib/image'
+import PhotoCarousel from '../../components/common/PhotoCarousel'
 
 export default function FeedTab({
   checkIns,
@@ -30,6 +32,11 @@ export default function FeedTab({
         rating: item.rating,
         note: item.note,
         photoDataUrl: item.photoDataUrl || item.photo_url || '',
+        photoDataUrls: Array.isArray(item.photoDataUrls)
+          ? item.photoDataUrls
+          : item.photoDataUrl || item.photo_url
+            ? [item.photoDataUrl || item.photo_url]
+            : [],
         createdAt: item.createdAt || '',
         isFriendPost: false,
         friendId: '',
@@ -206,6 +213,11 @@ export default function FeedTab({
       note: item.note ?? '',
       rating: Number(item.rating ?? 8),
       photoDataUrl: item.photoDataUrl ?? item.photo_url ?? '',
+      photoDataUrls: Array.isArray(item.photoDataUrls)
+        ? item.photoDataUrls
+        : item.photoDataUrl || item.photo_url
+          ? [item.photoDataUrl || item.photo_url]
+          : [],
     })
   }
 
@@ -220,19 +232,20 @@ export default function FeedTab({
       note: editDraft.note.trim(),
       rating: Number(editDraft.rating),
       photoDataUrl: editDraft.photoDataUrl || '',
+      photoDataUrls: Array.isArray(editDraft.photoDataUrls)
+        ? editDraft.photoDataUrls
+        : editDraft.photoDataUrl
+          ? [editDraft.photoDataUrl]
+          : [],
     })
     setEditingId('')
   }
 
-  function handleEditPhotoFile(event) {
+  async function handleEditPhotoFile(event) {
     const file = event.target.files?.[0]
     if (!file || !file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = String(reader.result ?? '')
-      setEditDraft((prev) => ({ ...prev, photoDataUrl: result }))
-    }
-    reader.readAsDataURL(file)
+    const cropped = await cropFileToSquareDataUrl(file)
+    setEditDraft((prev) => ({ ...prev, photoDataUrl: cropped }))
   }
 
   async function removeCheckIn(itemId) {
@@ -324,13 +337,11 @@ export default function FeedTab({
                 </div>
               </div>
             </div>
-            {(item.photoDataUrl || item.photo_url) && (
+            {(item.photoDataUrls?.length || item.photoDataUrl || item.photo_url) && (
               <div className="overflow-hidden border-y border-white/10 bg-zinc-950/30">
-                <img
-                  src={item.photoDataUrl || item.photo_url}
-                  alt={`${item.artist} check-in`}
-                  className="max-h-[28rem] w-full object-contain bg-zinc-950/70"
-                  loading="lazy"
+                <PhotoCarousel
+                  photos={item.photoDataUrls?.length ? item.photoDataUrls : [item.photoDataUrl || item.photo_url]}
+                  altBase={`${item.artist} check-in`}
                 />
               </div>
             )}
@@ -384,7 +395,7 @@ export default function FeedTab({
                     />
                   </label>
                   {editDraft.photoDataUrl && (
-                    <img src={editDraft.photoDataUrl} alt="Preview" className="h-24 w-full rounded-lg object-cover" />
+                    <img src={editDraft.photoDataUrl} alt="Preview" className="aspect-square w-full rounded-lg object-cover" />
                   )}
                   <div className="flex items-center gap-2">
                     <button

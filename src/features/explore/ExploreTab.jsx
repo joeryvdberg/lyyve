@@ -250,6 +250,8 @@ export default function ExploreTab({
   const [liveEventsLoading, setLiveEventsLoading] = useState(false)
   const [liveEventsError, setLiveEventsError] = useState('')
   const [expandedEventId, setExpandedEventId] = useState('')
+  const [eventDetailsById, setEventDetailsById] = useState({})
+  const [eventDetailsLoadingId, setEventDetailsLoadingId] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -416,6 +418,12 @@ export default function ExploreTab({
 
   const locationLabel = profile?.city?.trim() || 'jouw regio'
 
+  function getTicketLink(event) {
+    if (event.url) return event.url
+    const query = encodeURIComponent(`${event.name} ${event.city} tickets`)
+    return `https://www.google.com/search?q=${query}`
+  }
+
   useEffect(() => {
     let mounted = true
     const cityKey = normalizeText(profile?.city || '')
@@ -468,6 +476,51 @@ export default function ExploreTab({
     }
   }, [artists, profile?.city, profile?.favoriteArtists])
 
+  useEffect(() => {
+    if (!expandedEventId) return
+    const source = liveEvents.length > 0 ? liveEvents : UPCOMING_EVENTS
+    const event = source.find((item) => item.id === expandedEventId)
+    if (!event || eventDetailsById[event.id]) return
+
+    let mounted = true
+    async function loadEventDetails() {
+      try {
+        setEventDetailsLoadingId(event.id)
+        const response = await fetch(
+          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(event.name)}`
+        )
+        if (!response.ok) throw new Error('event-summary-unavailable')
+        const data = await response.json()
+        if (!mounted) return
+        setEventDetailsById((prev) => ({
+          ...prev,
+          [event.id]: {
+            description: data.extract || '',
+            imageUrl: data.thumbnail?.source || '',
+            moreInfoUrl: data.content_urls?.desktop?.page || '',
+          },
+        }))
+      } catch {
+        if (!mounted) return
+        setEventDetailsById((prev) => ({
+          ...prev,
+          [event.id]: {
+            description: '',
+            imageUrl: '',
+            moreInfoUrl: '',
+          },
+        }))
+      } finally {
+        if (mounted) setEventDetailsLoadingId('')
+      }
+    }
+
+    loadEventDetails()
+    return () => {
+      mounted = false
+    }
+  }, [eventDetailsById, expandedEventId, liveEvents])
+
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold text-white">
@@ -481,7 +534,7 @@ export default function ExploreTab({
             setMode('artist')
             setSelectedName('')
           }}
-          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+          className={`min-h-14 rounded-xl px-2 py-2.5 text-center text-[13px] font-semibold leading-tight whitespace-normal ${
             mode === 'artist'
               ? 'bg-gradient-to-r from-rose-500/30 via-fuchsia-500/30 to-sky-500/30 text-white'
               : 'text-zinc-300'
@@ -495,13 +548,13 @@ export default function ExploreTab({
             setMode('venue')
             setSelectedName('')
           }}
-          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+          className={`min-h-14 rounded-xl px-2 py-2.5 text-center text-[13px] font-semibold leading-tight whitespace-normal ${
             mode === 'venue'
               ? 'bg-gradient-to-r from-rose-500/30 via-fuchsia-500/30 to-sky-500/30 text-white'
               : 'text-zinc-300'
           }`}
         >
-          Venues/Festivals
+          Venues / festivals
         </button>
         <button
           type="button"
@@ -509,7 +562,7 @@ export default function ExploreTab({
             setMode('people')
             setSelectedName('')
           }}
-          className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+          className={`min-h-14 rounded-xl px-2 py-2.5 text-center text-[13px] font-semibold leading-tight whitespace-normal ${
             mode === 'people'
               ? 'bg-gradient-to-r from-rose-500/30 via-fuchsia-500/30 to-sky-500/30 text-white'
               : 'text-zinc-300'
@@ -657,6 +710,14 @@ export default function ExploreTab({
 
               {expandedEventId === event.id && (
                 <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-xs text-zinc-300">
+                  {eventDetailsById[event.id]?.imageUrl && (
+                    <img
+                      src={eventDetailsById[event.id].imageUrl}
+                      alt={event.name}
+                      className="aspect-square w-full rounded-xl object-cover"
+                      loading="lazy"
+                    />
+                  )}
                   <p>
                     <span className="text-zinc-500">Artiest:</span> {event.artist || 'TBA'}
                   </p>
@@ -669,18 +730,32 @@ export default function ExploreTab({
                   <p>
                     <span className="text-zinc-500">Bron:</span> {event.source || 'fallback'}
                   </p>
-                  {event.url ? (
+                  {eventDetailsLoadingId === event.id && (
+                    <p className="text-zinc-500">Extra event-info laden...</p>
+                  )}
+                  {eventDetailsById[event.id]?.description && (
+                    <p>{eventDetailsById[event.id].description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <a
-                      href={event.url}
+                      href={getTicketLink(event)}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex rounded-full border border-cyan-300/40 bg-cyan-500/15 px-3 py-1 font-medium text-cyan-200 hover:border-cyan-200/70"
                     >
                       Ticket / event openen
                     </a>
-                  ) : (
-                    <p className="text-zinc-500">Nog geen ticketlink beschikbaar.</p>
-                  )}
+                    {eventDetailsById[event.id]?.moreInfoUrl && (
+                      <a
+                        href={eventDetailsById[event.id].moreInfoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 font-medium text-zinc-200 hover:border-white/35"
+                      >
+                        Meer info
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

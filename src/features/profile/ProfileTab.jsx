@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
 import { evaluateBadges } from '../../lib/badges'
+import { cropFileToSquareDataUrl } from '../../lib/image'
+import PhotoCarousel from '../../components/common/PhotoCarousel'
 
 function avatarInitials(displayName = '') {
   const parts = displayName
@@ -212,18 +214,13 @@ export default function ProfileTab({
     setSaveState('idle')
   }
 
-  const handleAvatarFileChange = (event) => {
+  const handleAvatarFileChange = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = String(reader.result ?? '')
-      setForm((prev) => ({ ...prev, avatarUrl: result }))
-      setSaveState('idle')
-    }
-    reader.readAsDataURL(file)
+    const cropped = await cropFileToSquareDataUrl(file)
+    setForm((prev) => ({ ...prev, avatarUrl: cropped }))
+    setSaveState('idle')
   }
 
   const handleSubmit = async (event) => {
@@ -442,13 +439,11 @@ export default function ProfileTab({
                     </div>
                     <p className="mt-2 text-xs text-zinc-300">{item.note}</p>
                   </div>
-                  {(item.photoDataUrl || item.photo_url) && (
+                  {(item.photoDataUrls?.length || item.photoDataUrl || item.photo_url) && (
                     <div className="overflow-hidden border-t border-white/10 bg-zinc-950/40">
-                      <img
-                        src={item.photoDataUrl || item.photo_url}
-                        alt={`${item.artist} check-in`}
-                        className="max-h-[28rem] w-full object-contain bg-zinc-950/70"
-                        loading="lazy"
+                      <PhotoCarousel
+                        photos={item.photoDataUrls?.length ? item.photoDataUrls : [item.photoDataUrl || item.photo_url]}
+                        altBase={`${item.artist} check-in`}
                       />
                     </div>
                   )}

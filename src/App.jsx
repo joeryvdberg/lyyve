@@ -191,6 +191,11 @@ function App() {
             rating: Number(item.rating ?? 0),
             createdAt: item.created_at ?? '',
             photoDataUrl: item.photo_url ?? '',
+            photoDataUrls: Array.isArray(item.photo_urls)
+              ? item.photo_urls.filter(Boolean)
+              : item.photo_url
+                ? [item.photo_url]
+                : [],
             city: item.city ?? '',
             country: item.country ?? '',
           }))
@@ -321,7 +326,7 @@ function App() {
       const visibleUserIds = [session.user.id, ...followingIds]
       const { data: feedRows, error: feedError } = await supabase
         .from('check_ins')
-        .select('id, user_id, artist, venue, note, rating, created_at, photo_url, city, country')
+        .select('id, user_id, artist, venue, note, rating, created_at, photo_url, photo_urls, city, country')
         .in('user_id', visibleUserIds)
         .order('created_at', { ascending: false })
         .limit(120)
@@ -366,6 +371,11 @@ function App() {
           rating: Number(row.rating ?? 0),
           note: row.note ?? '',
           photoDataUrl: row.photo_url || '',
+          photoDataUrls: Array.isArray(row.photo_urls)
+            ? row.photo_urls.filter(Boolean)
+            : row.photo_url
+              ? [row.photo_url]
+              : [],
           createdAt: row.created_at || '',
           isFriendPost: !isOwn,
           friendId: isOwn ? '' : row.user_id,
@@ -408,6 +418,11 @@ function App() {
           rating: Number(row.rating ?? 0),
           createdAt: row.created_at || '',
           photoDataUrl: row.photo_url || '',
+          photoDataUrls: Array.isArray(row.photo_urls)
+            ? row.photo_urls.filter(Boolean)
+            : row.photo_url
+              ? [row.photo_url]
+              : [],
           city: row.city ?? '',
           country: row.country ?? '',
         })
@@ -506,7 +521,7 @@ function App() {
   }, [session?.user?.email, session?.user?.id])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSplashMinElapsed(true), 1700)
+    const timer = window.setTimeout(() => setSplashMinElapsed(true), 2700)
     return () => window.clearTimeout(timer)
   }, [])
 
@@ -539,13 +554,29 @@ function App() {
           note: newCheckIn.note ?? '',
           rating: newCheckIn.rating,
           photo_url: newCheckIn.photoDataUrl || null,
+          photo_urls: Array.isArray(newCheckIn.photoDataUrls) ? newCheckIn.photoDataUrls : null,
           city: newCheckIn.city || null,
           country: newCheckIn.country || null,
         })
         .select('*')
         .single()
-
-      if (!error && data) {
+      if (error) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('check_ins')
+          .insert({
+            user_id: session.user.id,
+            artist: newCheckIn.artist,
+            venue: newCheckIn.venue,
+            note: newCheckIn.note ?? '',
+            rating: newCheckIn.rating,
+            photo_url: newCheckIn.photoDataUrl || null,
+            city: newCheckIn.city || null,
+            country: newCheckIn.country || null,
+          })
+          .select('*')
+          .single()
+        if (!fallbackError && fallbackData) newCheckIn.id = fallbackData.id
+      } else if (data) {
         newCheckIn.id = data.id
       }
     }
@@ -606,7 +637,7 @@ function App() {
       }
 
       if (hasSupabaseConfig && supabase && session?.user?.id) {
-        await supabase
+        const { error } = await supabase
           .from('check_ins')
           .update({
             artist: merged.artist,
@@ -614,11 +645,27 @@ function App() {
             note: merged.note ?? '',
             rating: merged.rating,
             photo_url: merged.photoDataUrl || null,
+            photo_urls: Array.isArray(merged.photoDataUrls) ? merged.photoDataUrls : null,
             city: merged.city || null,
             country: merged.country || null,
           })
           .eq('id', checkInId)
           .eq('user_id', session.user.id)
+        if (error) {
+          await supabase
+            .from('check_ins')
+            .update({
+              artist: merged.artist,
+              venue: merged.venue,
+              note: merged.note ?? '',
+              rating: merged.rating,
+              photo_url: merged.photoDataUrl || null,
+              city: merged.city || null,
+              country: merged.country || null,
+            })
+            .eq('id', checkInId)
+            .eq('user_id', session.user.id)
+        }
       } else {
         await saveCheckIn(merged)
       }

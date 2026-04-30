@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
+// Keep layout stable on mobile by preventing gesture zoom.
+document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false })
+document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false })
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   let refreshing = false
 

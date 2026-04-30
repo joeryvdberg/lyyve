@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { cropFileToSquareDataUrl } from '../../lib/image'
+import PhotoCarousel from '../../components/common/PhotoCarousel'
 
 export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn }) {
   const [editingId, setEditingId] = useState('')
@@ -32,15 +34,11 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
     setEditingId('')
   }
 
-  function handleEditPhotoFile(event) {
+  async function handleEditPhotoFile(event) {
     const file = event.target.files?.[0]
     if (!file || !file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = String(reader.result ?? '')
-      setDraft((prev) => ({ ...prev, photoDataUrl: result }))
-    }
-    reader.readAsDataURL(file)
+    const cropped = await cropFileToSquareDataUrl(file)
+    setDraft((prev) => ({ ...prev, photoDataUrl: cropped }))
   }
 
   async function handleDelete(itemId) {
@@ -149,7 +147,7 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
                     />
                   </label>
                   {draft.photoDataUrl && (
-                    <img src={draft.photoDataUrl} alt="Preview" className="h-24 w-full rounded-lg object-cover" />
+                    <img src={draft.photoDataUrl} alt="Preview" className="aspect-square w-full rounded-lg object-cover" />
                   )}
                   <div className="flex items-center gap-2">
                     <button
@@ -208,12 +206,13 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
                     </div>
                   </div>
                   {item.note && <p className="mt-2 text-xs text-zinc-300">{item.note}</p>}
-                  {(item.photoDataUrl || item.photo_url) && (
-                    <img
-                      src={item.photoDataUrl || item.photo_url}
-                      alt={`${item.artist} check-in`}
-                      className="mt-2 h-24 w-full rounded-lg object-cover"
-                    />
+                  {(item.photoDataUrls?.length || item.photoDataUrl || item.photo_url) && (
+                    <div className="mt-2">
+                      <PhotoCarousel
+                        photos={item.photoDataUrls?.length ? item.photoDataUrls : [item.photoDataUrl || item.photo_url]}
+                        altBase={`${item.artist} check-in`}
+                      />
+                    </div>
                   )}
                 </>
               )}
