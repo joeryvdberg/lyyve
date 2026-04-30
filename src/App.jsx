@@ -208,6 +208,8 @@ function App() {
   const [splashHiding, setSplashHiding] = useState(false)
   const [splashGone, setSplashGone] = useState(false)
   const [socialFeedRefreshTick, setSocialFeedRefreshTick] = useState(0)
+  const [socialFeedError, setSocialFeedError] = useState('')
+  const [followSyncError, setFollowSyncError] = useState('')
   const lastSocialFeedRefreshAtRef = useRef(0)
   const socialFeedRefreshCooldownMs = 12_000
 
@@ -336,10 +338,14 @@ function App() {
 
         if (!mounted) return
         if (followingError || followerError) {
+          setFollowSyncError(
+            'Volgen/volgers konden niet geladen worden. Controleer Supabase RLS policies op follows.'
+          )
           setFollowingIds([])
           setFollowerIds([])
           return
         }
+        setFollowSyncError('')
         setFollowingIds((followingRows ?? []).map((row) => row.following_id).filter(Boolean))
         setFollowerIds((followerRows ?? []).map((row) => row.follower_id).filter(Boolean))
         return
@@ -379,6 +385,7 @@ function App() {
 
     async function loadSocialFeed() {
       if (!(hasSupabaseConfig && supabase && session?.user?.id)) {
+        setSocialFeedError('')
         const localMyFeedItems = myCheckIns.map((item) => ({
           id: item.id,
           user: profile.displayName || profile.username || 'Jij',
@@ -427,10 +434,14 @@ function App() {
 
       if (!mounted) return
       if (feedError || !feedRows) {
+        setSocialFeedError(
+          'Feed kan nu geen posts van andere gebruikers laden. Controleer de Supabase RLS SELECT policy op check_ins.'
+        )
         setSocialFeedItems([])
         setSocialFriends([])
         return
       }
+      setSocialFeedError('')
 
       const { data: directoryRows } = await supabase
         .from('profiles')
@@ -1044,18 +1055,35 @@ function App() {
       )
 
       if (hasSupabaseConfig && supabase && session?.user?.id) {
+        let writeError = null
         if (isFollowing) {
-          await supabase
+          const { error } = await supabase
             .from('follows')
             .delete()
             .eq('follower_id', session.user.id)
             .eq('following_id', friendId)
+          writeError = error
         } else {
-          await supabase.from('follows').insert({
+          const { error } = await supabase.from('follows').insert({
             follower_id: session.user.id,
             following_id: friendId,
           })
+          writeError = error
         }
+
+        if (writeError) {
+          setFollowingIds((prev) =>
+            isFollowing ? [...prev, friendId] : prev.filter((id) => id !== friendId)
+          )
+          setFollowSyncError(
+            'Volgen opslaan mislukt in Supabase. Controleer follows INSERT/DELETE RLS policies.'
+          )
+          window.alert(
+            'Volgen kon niet worden opgeslagen. Controleer Supabase RLS policies op de follows tabel.'
+          )
+          return
+        }
+        setFollowSyncError('')
       }
       requestSocialFeedRefresh(true)
     },
@@ -1125,6 +1153,7 @@ function App() {
         profile={profile}
         currentUser={session?.user ?? null}
         feedItems={socialFeedItems}
+        feedError={socialFeedError || followSyncError}
         onUpdateCheckIn={handleUpdateCheckIn}
         onDeleteCheckIn={handleDeleteCheckIn}
         onOpenProfile={handleOpenProfileFromFeed}
@@ -1132,7 +1161,7 @@ function App() {
         onFeedMutated={() => requestSocialFeedRefresh(true)}
       />
     )
-  }, [activeTab, badges, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteAccount, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, profileNeedsCompletion, requestSocialFeedRefresh, socialFeedItems, socialFriends])
+  }, [activeTab, badges, followSyncError, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteAccount, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, profileNeedsCompletion, requestSocialFeedRefresh, socialFeedError, socialFeedItems, socialFriends])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone

@@ -10,6 +10,7 @@ export default function FeedTab({
   profile,
   currentUser,
   feedItems = [],
+  feedError = '',
   onUpdateCheckIn,
   onDeleteCheckIn,
   onOpenProfile,
@@ -311,6 +312,11 @@ export default function FeedTab({
       <p className="text-sm text-zinc-400">
         Hier zie je check-ins van vrienden: welke artiest ze zagen, hun score en opmerking.
       </p>
+      {feedError && (
+        <p className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          {feedError}
+        </p>
+      )}
       <div className="space-y-3">
         {renderedFeedItems.map((item, index) => (
           <article
