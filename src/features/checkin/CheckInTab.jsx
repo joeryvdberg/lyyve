@@ -166,6 +166,7 @@ export default function CheckInTab({ onAddCheckIn }) {
   const [artistQuery, setArtistQuery] = useState('')
   const [venue, setVenue] = useState('')
   const [note, setNote] = useState('')
+  const [checkInDate, setCheckInDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [photoDataUrls, setPhotoDataUrls] = useState([])
   const [pendingCropSource, setPendingCropSource] = useState('')
   const [cropQueue, setCropQueue] = useState([])
@@ -244,6 +245,7 @@ export default function CheckInTab({ onAddCheckIn }) {
       venue: location,
       note: description,
       rating,
+      createdAt: checkInDate ? new Date(`${checkInDate}T12:00:00`).toISOString() : new Date().toISOString(),
       photoDataUrl: photoDataUrls[0] || '',
       photoDataUrls,
     })
@@ -255,6 +257,7 @@ export default function CheckInTab({ onAddCheckIn }) {
     setVenue('')
     setNote('')
     setRating(8.0)
+    setCheckInDate(new Date().toISOString().slice(0, 10))
     setPhotoDataUrls([])
     setPendingCropSource('')
     setCropQueue([])
@@ -355,6 +358,16 @@ export default function CheckInTab({ onAddCheckIn }) {
               className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
               placeholder="Hoe was de show? Sfeer, geluid, setlist..."
             />
+          </label>
+          <label className="block text-sm text-zinc-300">
+            Datum van je check-in
+            <input
+              type="date"
+              value={checkInDate}
+              onChange={(event) => setCheckInDate(event.target.value)}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 focus:ring-2"
+            />
+            <p className="mt-1 text-[11px] text-zinc-500">Laat je dit staan, dan gebruiken we vandaag.</p>
           </label>
           <label className="block text-sm text-zinc-300">
             Foto van je moment

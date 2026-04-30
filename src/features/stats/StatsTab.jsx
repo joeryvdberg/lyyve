@@ -5,7 +5,7 @@ import PhotoCarousel from '../../components/common/PhotoCarousel'
 export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn }) {
   const [editingId, setEditingId] = useState('')
   const [menuOpenId, setMenuOpenId] = useState('')
-  const [draft, setDraft] = useState({ artist: '', venue: '', note: '', rating: 8.0, photoDataUrl: '' })
+  const [draft, setDraft] = useState({ artist: '', venue: '', note: '', rating: 8.0, photoDataUrl: '', checkInDate: '' })
 
   function startEdit(item) {
     setMenuOpenId('')
@@ -16,6 +16,7 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
       note: item.note || '',
       rating: Number(item.rating ?? 8.0),
       photoDataUrl: item.photoDataUrl || item.photo_url || '',
+      checkInDate: item.createdAt ? String(item.createdAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
     })
   }
 
@@ -29,6 +30,7 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
       venue,
       note: draft.note.trim(),
       rating: Number(draft.rating),
+      createdAt: draft.checkInDate ? new Date(`${draft.checkInDate}T12:00:00`).toISOString() : new Date().toISOString(),
       photoDataUrl: draft.photoDataUrl || '',
     })
     setEditingId('')
@@ -126,6 +128,15 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
                     />
                   </label>
                   <label className="block text-xs text-zinc-400">
+                    Datum
+                    <input
+                      type="date"
+                      value={draft.checkInDate}
+                      onChange={(event) => setDraft((prev) => ({ ...prev, checkInDate: event.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-900/80 px-2.5 py-1.5 text-sm text-white outline-none ring-cyan-400 focus:ring-2"
+                    />
+                  </label>
+                  <label className="block text-xs text-zinc-400">
                     Rating ({Number(draft.rating).toFixed(1)})
                     <input
                       type="range"
@@ -172,6 +183,9 @@ export default function StatsTab({ checkIns, onUpdateCheckIn, onDeleteCheckIn })
                     <div>
                       <p className="text-sm font-semibold text-white">{item.artist}</p>
                       <p className="text-xs text-zinc-400">{item.venue}</p>
+                      <p className="text-[11px] text-zinc-500">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString('nl-NL') : ''}
+                      </p>
                     </div>
                     <div className="relative flex items-center gap-2">
                       <button

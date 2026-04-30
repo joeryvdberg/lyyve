@@ -18,6 +18,7 @@ import {
   saveProfile,
 } from './lib/db'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
+import { uploadCheckInPhotos } from './lib/mediaStorage'
 
 const ASSET_BASE = import.meta.env.BASE_URL
 
@@ -641,10 +642,15 @@ function App() {
     const newCheckIn = {
       ...checkIn,
       id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+      createdAt: checkIn.createdAt || new Date().toISOString(),
     }
 
     if (hasSupabaseConfig && supabase && session?.user?.id) {
+      const uploadedPhotoUrls = await uploadCheckInPhotos(session.user.id, newCheckIn.photoDataUrls || [])
+      if (uploadedPhotoUrls.length > 0) {
+        newCheckIn.photoDataUrls = uploadedPhotoUrls
+        newCheckIn.photoDataUrl = uploadedPhotoUrls[0]
+      }
       const { data, error } = await supabase
         .from('check_ins')
         .insert({
@@ -653,6 +659,7 @@ function App() {
           venue: newCheckIn.venue,
           note: newCheckIn.note ?? '',
           rating: newCheckIn.rating,
+          created_at: newCheckIn.createdAt,
           photo_url: newCheckIn.photoDataUrl || null,
           photo_urls: Array.isArray(newCheckIn.photoDataUrls) ? newCheckIn.photoDataUrls : null,
           city: newCheckIn.city || null,
@@ -669,6 +676,7 @@ function App() {
             venue: newCheckIn.venue,
             note: newCheckIn.note ?? '',
             rating: newCheckIn.rating,
+            created_at: newCheckIn.createdAt,
             photo_url: newCheckIn.photoDataUrl || null,
             city: newCheckIn.city || null,
             country: newCheckIn.country || null,
@@ -782,6 +790,11 @@ function App() {
       }
 
       if (hasSupabaseConfig && supabase && session?.user?.id) {
+        const uploadedPhotoUrls = await uploadCheckInPhotos(session.user.id, merged.photoDataUrls || [])
+        if (uploadedPhotoUrls.length > 0) {
+          merged.photoDataUrls = uploadedPhotoUrls
+          merged.photoDataUrl = uploadedPhotoUrls[0]
+        }
         const { error } = await supabase
           .from('check_ins')
           .update({
@@ -789,6 +802,7 @@ function App() {
             venue: merged.venue,
             note: merged.note ?? '',
             rating: merged.rating,
+            created_at: merged.createdAt || null,
             photo_url: merged.photoDataUrl || null,
             photo_urls: Array.isArray(merged.photoDataUrls) ? merged.photoDataUrls : null,
             city: merged.city || null,
@@ -804,6 +818,7 @@ function App() {
               venue: merged.venue,
               note: merged.note ?? '',
               rating: merged.rating,
+              created_at: merged.createdAt || null,
               photo_url: merged.photoDataUrl || null,
               city: merged.city || null,
               country: merged.country || null,
