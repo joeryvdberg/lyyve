@@ -3,15 +3,40 @@ import { useState } from 'react'
 export default function PhotoCarousel({ photos = [], altBase = 'Foto' }) {
   const cleaned = photos.filter(Boolean)
   const [index, setIndex] = useState(0)
+  const [touchStartX, setTouchStartX] = useState(null)
 
   if (!cleaned.length) return null
   const safeIndex = Math.min(index, cleaned.length - 1)
   const active = cleaned[safeIndex]
 
+  function handleSwipeStart(event) {
+    setTouchStartX(event.touches?.[0]?.clientX ?? null)
+  }
+
+  function handleSwipeEnd(event) {
+    if (touchStartX === null) return
+    const endX = event.changedTouches?.[0]?.clientX ?? touchStartX
+    const delta = endX - touchStartX
+    const threshold = 36
+    if (delta > threshold) {
+      setIndex((prev) => (prev - 1 + cleaned.length) % cleaned.length)
+    } else if (delta < -threshold) {
+      setIndex((prev) => (prev + 1) % cleaned.length)
+    }
+    setTouchStartX(null)
+  }
+
   return (
     <div className="space-y-2">
       <div className="relative overflow-hidden rounded-xl border border-white/10 bg-zinc-950/70">
-        <img src={active} alt={`${altBase} ${safeIndex + 1}`} className="aspect-square w-full object-cover" loading="lazy" />
+        <img
+          src={active}
+          alt={`${altBase} ${safeIndex + 1}`}
+          className="aspect-square w-full object-cover"
+          loading="lazy"
+          onTouchStart={handleSwipeStart}
+          onTouchEnd={handleSwipeEnd}
+        />
         {cleaned.length > 1 && (
           <>
             <button

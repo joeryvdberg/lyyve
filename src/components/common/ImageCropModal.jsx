@@ -8,6 +8,7 @@ export default function ImageCropModal({ source, onCancel, onConfirm }) {
   const [zoom, setZoom] = useState(1.1)
   const [offsetX, setOffsetX] = useState(0)
   const [offsetY, setOffsetY] = useState(0)
+  const [dragStart, setDragStart] = useState(null)
 
   const transform = useMemo(
     () => `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
@@ -42,12 +43,40 @@ export default function ImageCropModal({ source, onCancel, onConfirm }) {
     onConfirm(canvas.toDataURL('image/jpeg', 0.9))
   }
 
+  function handlePointerDown(event) {
+    setDragStart({
+      x: event.clientX,
+      y: event.clientY,
+      baseX: offsetX,
+      baseY: offsetY,
+    })
+  }
+
+  function handlePointerMove(event) {
+    if (!dragStart) return
+    const dx = event.clientX - dragStart.x
+    const dy = event.clientY - dragStart.y
+    const scale = 0.18
+    setOffsetX(clamp(dragStart.baseX + dx * scale, -100, 100))
+    setOffsetY(clamp(dragStart.baseY + dy * scale, -100, 100))
+  }
+
+  function handlePointerUp() {
+    setDragStart(null)
+  }
+
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm">
       <article className="w-full max-w-md space-y-3 rounded-3xl border border-white/15 bg-zinc-900/95 p-4 shadow-2xl">
         <h3 className="text-base font-semibold text-white">Foto bijsnijden (1:1)</h3>
         <div className="overflow-hidden rounded-xl border border-white/10 bg-zinc-950/60">
-          <div className="aspect-square w-full overflow-hidden">
+          <div
+            className="aspect-square w-full overflow-hidden touch-none"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+          >
             <img
               src={source}
               alt="Crop preview"
@@ -56,6 +85,7 @@ export default function ImageCropModal({ source, onCancel, onConfirm }) {
             />
           </div>
         </div>
+        <p className="text-[11px] text-zinc-500">Sleep de foto met je vinger om het kader te kiezen.</p>
         <label className="block text-xs text-zinc-400">
           Zoom
           <input
@@ -65,30 +95,6 @@ export default function ImageCropModal({ source, onCancel, onConfirm }) {
             step="0.01"
             value={zoom}
             onChange={(event) => setZoom(Number(event.target.value))}
-            className="mt-1 w-full accent-cyan-400"
-          />
-        </label>
-        <label className="block text-xs text-zinc-400">
-          Horizontaal
-          <input
-            type="range"
-            min="-100"
-            max="100"
-            step="1"
-            value={offsetX}
-            onChange={(event) => setOffsetX(Number(event.target.value))}
-            className="mt-1 w-full accent-cyan-400"
-          />
-        </label>
-        <label className="block text-xs text-zinc-400">
-          Verticaal
-          <input
-            type="range"
-            min="-100"
-            max="100"
-            step="1"
-            value={offsetY}
-            onChange={(event) => setOffsetY(Number(event.target.value))}
             className="mt-1 w-full accent-cyan-400"
           />
         </label>

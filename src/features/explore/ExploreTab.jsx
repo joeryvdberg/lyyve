@@ -203,10 +203,11 @@ async function fetchBandsintownNearbyEvents({ appId, artists, cityKey, targetCit
     artistSlice.map((artist) => fetchBandsintownArtistEvents(artist, appId).catch(() => []))
   )
   const citySet = new Set(targetCities.map(normalizeText))
-  const merged = dedupeEventsById(responses.flat())
-    .filter((event) => citySet.has(normalizeText(event.city)))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 20)
+  const deduped = dedupeEventsById(responses.flat()).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
+  const cityMatched = deduped.filter((event) => citySet.has(normalizeText(event.city)))
+  const merged = (cityMatched.length > 0 ? cityMatched : deduped).slice(0, 20)
 
   await saveEventCache(cityKey, merged, 'bandsintown')
   return merged

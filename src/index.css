@@ -7,6 +7,7 @@ body {
   background: #05020f;
   color: #f4f4f5;
   touch-action: manipulation;
+  overscroll-behavior: none;
 }
 
 #root {
@@ -16,6 +17,13 @@ body {
 
 html {
   background: #05020f;
+  overscroll-behavior: none;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 @keyframes splashLogoReveal {
