@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function PhotoCarousel({ photos = [], altBase = 'Foto' }) {
+export default function PhotoCarousel({ photos = [], altBase = 'Foto', rounded = true }) {
   const cleaned = photos.filter(Boolean)
   const [index, setIndex] = useState(0)
   const [touchStartX, setTouchStartX] = useState(null)
@@ -28,7 +28,7 @@ export default function PhotoCarousel({ photos = [], altBase = 'Foto' }) {
 
   return (
     <div>
-      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-zinc-950/70">
+      <div className={`relative overflow-hidden border border-white/10 bg-zinc-950/70 ${rounded ? 'rounded-xl' : ''}`}>
         <img
           src={active}
           alt={`${altBase} ${safeIndex + 1}`}

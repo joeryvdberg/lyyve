@@ -294,9 +294,11 @@ export default function ProfileTab({
   }, [selectedFriend])
 
   const getBadgeEmoji = (badgeId) => {
-    if (badgeId === 'festival-veteran') return '🎪'
-    if (badgeId === 'globe-trotter') return '🌍'
-    if (badgeId === 'front-row') return '🎫'
+    if (badgeId.startsWith('festival-')) return '🎪'
+    if (badgeId === 'globe-trotter' || badgeId === 'world-tour') return '🌍'
+    if (badgeId === 'front-row' || badgeId === 'die-hard' || badgeId === 'superfan') return '🎫'
+    if (badgeId === 'taste-maker' || badgeId === 'scene-curator') return '🎧'
+    if (badgeId === 'crowd-favorite') return '🔥'
     if (badgeId === 'early-adopter') return '✨'
     return '🏆'
   }

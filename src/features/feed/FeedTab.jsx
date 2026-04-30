@@ -389,6 +389,7 @@ export default function FeedTab({
                 <PhotoCarousel
                   photos={item.photoDataUrls?.length ? item.photoDataUrls : [item.photoDataUrl || item.photo_url]}
                   altBase={`${item.artist} check-in`}
+                  rounded={false}
                 />
               </div>
             )}

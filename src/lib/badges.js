@@ -19,10 +19,90 @@ const VENUE_COUNTRY_HINTS = [
 ]
 
 export const BADGE_DEFINITIONS = [
-  { id: 'festival-veteran', name: 'Festival Veteran', description: 'Bezoek 5 verschillende festivals.', threshold: 5 },
-  { id: 'globe-trotter', name: 'Globe Trotter', description: 'Check in binnen 3 landen.', threshold: 3 },
-  { id: 'front-row', name: 'Front Row', description: 'Zie dezelfde artiest 3x live.', threshold: 3 },
-  { id: 'early-adopter', name: 'Early Adopter', description: 'Je bent er vroeg bij op Lyyve.', threshold: 1 },
+  {
+    id: 'front-row',
+    name: 'Front Row',
+    description: 'Zie dezelfde artiest 3x live.',
+    threshold: 3,
+    metric: 'highestArtistCount',
+  },
+  {
+    id: 'die-hard',
+    name: 'Die Hard',
+    description: 'Zie dezelfde artiest 5x live.',
+    threshold: 5,
+    metric: 'highestArtistCount',
+  },
+  {
+    id: 'superfan',
+    name: 'Superfan',
+    description: 'Zie dezelfde artiest 10x live.',
+    threshold: 10,
+    metric: 'highestArtistCount',
+  },
+  {
+    id: 'festival-scout',
+    name: 'Festival Scout',
+    description: 'Bezoek 3 verschillende festivals.',
+    threshold: 3,
+    metric: 'uniqueFestivalCount',
+  },
+  {
+    id: 'festival-veteran',
+    name: 'Festival Veteran',
+    description: 'Bezoek 5 verschillende festivals.',
+    threshold: 5,
+    metric: 'uniqueFestivalCount',
+  },
+  {
+    id: 'festival-legend',
+    name: 'Festival Legend',
+    description: 'Bezoek 10 verschillende festivals.',
+    threshold: 10,
+    metric: 'uniqueFestivalCount',
+  },
+  {
+    id: 'globe-trotter',
+    name: 'Globe Trotter',
+    description: 'Check in binnen 3 landen.',
+    threshold: 3,
+    metric: 'countryCount',
+  },
+  {
+    id: 'world-tour',
+    name: 'World Tour',
+    description: 'Check in binnen 5 landen.',
+    threshold: 5,
+    metric: 'countryCount',
+  },
+  {
+    id: 'taste-maker',
+    name: 'Taste Maker',
+    description: 'Check in bij 15 verschillende artiesten.',
+    threshold: 15,
+    metric: 'uniqueArtistCount',
+  },
+  {
+    id: 'scene-curator',
+    name: 'Scene Curator',
+    description: 'Check in bij 30 verschillende artiesten.',
+    threshold: 30,
+    metric: 'uniqueArtistCount',
+  },
+  {
+    id: 'crowd-favorite',
+    name: 'Crowd Favorite',
+    description: 'Plaats 10 check-ins met een rating van 9.0 of hoger.',
+    threshold: 10,
+    metric: 'highRatingCount',
+  },
+  {
+    id: 'early-adopter',
+    name: 'Early Adopter',
+    description: 'Je bent er vroeg bij op Lyyve.',
+    threshold: 1,
+    metric: 'isEarlyAdopter',
+  },
 ]
 
 function normalize(value = '') {
@@ -55,22 +135,27 @@ export function evaluateBadges(checkIns = [], existingBadges = []) {
   const artistCounter = new Map()
   for (const item of checkIns) {
     const key = normalize(item.artist)
+    if (!key) continue
     artistCounter.set(key, (artistCounter.get(key) ?? 0) + 1)
   }
   const highestArtistCount = [...artistCounter.values()].reduce((max, count) => Math.max(max, count), 0)
+  const uniqueArtistCount = artistCounter.size
 
   const countryCount = new Set(checkIns.map(inferCountryFromCheckIn).filter(Boolean)).size
+  const highRatingCount = checkIns.filter((item) => Number(item.rating ?? 0) >= 9).length
   const isEarlyAdopter = Boolean(firstCheckInAt && new Date(firstCheckInAt).getTime() < new Date('2027-01-01').getTime())
 
-  const progressById = {
-    'festival-veteran': uniqueFestivalCount,
-    'globe-trotter': countryCount,
-    'front-row': highestArtistCount,
-    'early-adopter': isEarlyAdopter ? 1 : 0,
+  const progressByMetric = {
+    highestArtistCount,
+    uniqueFestivalCount,
+    countryCount,
+    uniqueArtistCount,
+    highRatingCount,
+    isEarlyAdopter: isEarlyAdopter ? 1 : 0,
   }
 
   return BADGE_DEFINITIONS.map((definition) => {
-    const progress = progressById[definition.id] ?? 0
+    const progress = progressByMetric[definition.metric] ?? 0
     const unlocked = progress >= definition.threshold
     const existing = existingMap.get(definition.id)
     return {
