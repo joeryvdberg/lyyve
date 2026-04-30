@@ -690,7 +690,7 @@ export default function ExploreTab({
                 >
                   <button
                     type="button"
-                    onClick={() => onOpenProfile?.(friend.id)}
+                    onClick={() => onOpenProfile?.(friend.id, friend)}
                     className="text-left"
                   >
                     <p className="text-sm font-semibold text-white">{friend.displayName}</p>
@@ -698,7 +698,7 @@ export default function ExploreTab({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onToggleFollow?.(friend.id)}
+                    onClick={() => onToggleFollow?.(friend.id, friend)}
                     className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${
                       isFollowing
                         ? 'border-white/20 text-zinc-300 hover:border-white/35'

@@ -993,14 +993,50 @@ function App() {
     [requestSocialFeedRefresh, session]
   )
 
-  const handleOpenProfileFromFeed = useCallback((friendId = '') => {
+  const handleOpenProfileFromFeed = useCallback((friendId = '', friendSnapshot = null) => {
+    if (friendSnapshot?.id) {
+      setSocialFriends((prev) => {
+        const exists = prev.some((friend) => friend.id === friendSnapshot.id)
+        if (exists) return prev
+        return [
+          ...prev,
+          {
+            id: friendSnapshot.id,
+            username: friendSnapshot.username || `user-${String(friendSnapshot.id).slice(0, 8)}`,
+            displayName: friendSnapshot.displayName || friendSnapshot.username || 'Gebruiker',
+            bio: friendSnapshot.bio || '',
+            avatarUrl: friendSnapshot.avatarUrl || '',
+            city: friendSnapshot.city || '',
+            checkIns: [],
+          },
+        ]
+      })
+    }
     setFocusedFriendId(friendId)
     setActiveTab('profile')
   }, [])
 
   const handleToggleFollow = useCallback(
-    async (friendId) => {
+    async (friendId, friendSnapshot = null) => {
       if (!friendId) return
+      if (friendSnapshot?.id) {
+        setSocialFriends((prev) => {
+          const exists = prev.some((friend) => friend.id === friendSnapshot.id)
+          if (exists) return prev
+          return [
+            ...prev,
+            {
+              id: friendSnapshot.id,
+              username: friendSnapshot.username || `user-${String(friendSnapshot.id).slice(0, 8)}`,
+              displayName: friendSnapshot.displayName || friendSnapshot.username || 'Gebruiker',
+              bio: friendSnapshot.bio || '',
+              avatarUrl: friendSnapshot.avatarUrl || '',
+              city: friendSnapshot.city || '',
+              checkIns: [],
+            },
+          ]
+        })
+      }
 
       const isFollowing = followingIds.includes(friendId)
       setFollowingIds((prev) =>
@@ -1021,8 +1057,9 @@ function App() {
           })
         }
       }
+      requestSocialFeedRefresh(true)
     },
-    [followingIds, session?.user?.id]
+    [followingIds, requestSocialFeedRefresh, session?.user?.id]
   )
 
   const profileNeedsCompletion = useMemo(() => {
