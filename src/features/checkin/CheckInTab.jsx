@@ -172,6 +172,7 @@ export default function CheckInTab({ onAddCheckIn }) {
   const [cropQueue, setCropQueue] = useState([])
   const [artistPool, setArtistPool] = useState([])
   const [venuePool, setVenuePool] = useState([])
+  const [showSuccessPulse, setShowSuccessPulse] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -231,7 +232,7 @@ export default function CheckInTab({ onAddCheckIn }) {
     return rankSuggestions(venuePool, query, MAINSTREAM_EVENTS)
   }, [venuePool, venue])
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
     const artist = artistQuery.trim()
@@ -240,7 +241,7 @@ export default function CheckInTab({ onAddCheckIn }) {
 
     if (!artist || !location) return
 
-    onAddCheckIn({
+    await onAddCheckIn({
       artist,
       venue: location,
       note: description,
@@ -249,6 +250,8 @@ export default function CheckInTab({ onAddCheckIn }) {
       photoDataUrl: photoDataUrls[0] || '',
       photoDataUrls,
     })
+    setShowSuccessPulse(true)
+    window.setTimeout(() => setShowSuccessPulse(false), 1700)
 
     setArtistPool((prev) => mergeByName([{ name: artist, source: 'Community', popularity: 100 }], prev))
     setVenuePool((prev) => mergeByName([{ name: location, source: 'Community', popularity: 100 }], prev))
@@ -297,7 +300,7 @@ export default function CheckInTab({ onAddCheckIn }) {
   }
 
   return (
-    <section className="space-y-4">
+    <section className="relative space-y-4">
       <h2 className="text-2xl font-semibold text-white">
         Nieuwe check-in<span className="text-cyan-300">.</span>
       </h2>
@@ -442,6 +445,18 @@ export default function CheckInTab({ onAddCheckIn }) {
             setCropQueue(rest)
           }}
         />
+      )}
+      {showSuccessPulse && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-zinc-950/55 backdrop-blur-[1px]">
+          <div className="relative">
+            <div className="absolute inset-0 scale-125 rounded-full bg-cyan-400/25 blur-xl animate-ping" />
+            <div className="relative rounded-3xl border border-cyan-300/40 bg-zinc-900/95 px-6 py-5 text-center shadow-2xl shadow-cyan-500/25">
+              <p className="text-3xl" aria-hidden="true">🎉</p>
+              <p className="mt-1 text-base font-semibold text-white">Check-in opgeslagen</p>
+              <p className="mt-1 text-xs text-cyan-200">Je moment staat nu in je feed.</p>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   )
