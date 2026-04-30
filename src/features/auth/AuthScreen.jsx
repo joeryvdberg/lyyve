@@ -332,7 +332,7 @@ export default function AuthScreen({ forceReset = false }) {
                     value={displayName}
                     onChange={(event) => setDisplayName(event.target.value)}
                     className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
-                    placeholder="Bijv. Joery van den Berg"
+                    placeholder="Bijv. Alex de Vries"
                     required
                   />
                 </label>
@@ -342,7 +342,7 @@ export default function AuthScreen({ forceReset = false }) {
                     value={username}
                     onChange={(event) => setUsername(normalizeUsername(event.target.value))}
                     className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-cyan-400 placeholder:text-zinc-500 focus:ring-2"
-                    placeholder="Bijv. joerylive"
+                    placeholder="Bijv. alexbeats"
                     autoCapitalize="off"
                     autoCorrect="off"
                     required
