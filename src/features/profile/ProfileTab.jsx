@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getCatalogEntries, getFeedInteractions, saveFeedInteraction } from '../../lib/db'
 import { evaluateBadges } from '../../lib/badges'
 import { cropFileToSquareDataUrl } from '../../lib/image'
+import { hasSupabaseConfig, supabase } from '../../lib/supabase'
 import PhotoCarousel from '../../components/common/PhotoCarousel'
 
 const CITY_SUGGESTIONS = [
@@ -233,6 +234,8 @@ export default function ProfileTab({
   const [commentErrors, setCommentErrors] = useState({})
   const [saveError, setSaveError] = useState('')
   const [artistPool, setArtistPool] = useState([])
+  const [badgeDetailGroup, setBadgeDetailGroup] = useState('')
+  const [globalBadgePercentages, setGlobalBadgePercentages] = useState({})
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(profile)
@@ -243,6 +246,51 @@ export default function ProfileTab({
   const followers = friends.filter((friend) => followerIdsExternal.includes(friend.id))
   const following = friends.filter((friend) => followingIds.includes(friend.id))
   const unlockedBadges = useMemo(() => badges.filter((badge) => badge.unlocked), [badges])
+  const groupedBadges = useMemo(() => {
+    const groups = new Map()
+    for (const badge of badges) {
+      const groupKey = badge.group || badge.metric || badge.id
+      const list = groups.get(groupKey) ?? []
+      list.push(badge)
+      groups.set(groupKey, list)
+    }
+    return [...groups.entries()].map(([group, list]) => ({
+      group,
+      badges: list.slice().sort((a, b) => a.threshold - b.threshold),
+    }))
+  }, [badges])
+  const compactBadgeCards = useMemo(() => {
+    return groupedBadges.map(({ group, badges: tierBadges }) => {
+      const nextLocked = tierBadges.find((badge) => !badge.unlocked)
+      const displayBadge = nextLocked || tierBadges[tierBadges.length - 1]
+      const unlockedInGroup = tierBadges.filter((badge) => badge.unlocked).length
+      return {
+        group,
+        displayBadge,
+        unlockedInGroup,
+        totalInGroup: tierBadges.length,
+      }
+    })
+  }, [groupedBadges])
+  const unlockedBadgeHighlights = useMemo(() => {
+    return groupedBadges
+      .map(({ badges: tierBadges }) => tierBadges.filter((badge) => badge.unlocked).slice(-1)[0] || null)
+      .filter(Boolean)
+  }, [groupedBadges])
+  const localBadgePercentages = useMemo(() => {
+    const users = [{ id: 'me', checkIns }, ...friends]
+    if (!users.length) return {}
+    const totals = Object.fromEntries(badges.map((badge) => [badge.id, 0]))
+    for (const user of users) {
+      const userBadges = user.id === 'me' ? badges : evaluateBadges(user.checkIns ?? [], [])
+      for (const badge of userBadges) {
+        if (badge.unlocked) totals[badge.id] = (totals[badge.id] ?? 0) + 1
+      }
+    }
+    return Object.fromEntries(
+      Object.entries(totals).map(([badgeId, count]) => [badgeId, Math.round((count / users.length) * 100)])
+    )
+  }, [badges, checkIns, friends])
   const friendSearchResults = useMemo(() => {
     const query = friendSearchQuery.trim().toLowerCase()
     if (!query) return friends
@@ -303,6 +351,16 @@ export default function ProfileTab({
     return '🏆'
   }
 
+  function getBadgeGroupLabel(groupId = '') {
+    if (groupId === 'artist-loyalty') return 'Artiest loyaliteit'
+    if (groupId === 'festival-tier') return 'Festival levels'
+    if (groupId === 'travel-tier') return 'Reis levels'
+    if (groupId === 'discovery-tier') return 'Ontdekker levels'
+    if (groupId === 'quality-tier') return 'Kwaliteit'
+    if (groupId === 'special') return 'Special'
+    return 'Badges'
+  }
+
   useEffect(() => {
     let mounted = true
     async function loadInteractions() {
@@ -314,6 +372,76 @@ export default function ProfileTab({
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !supabase || badges.length === 0) return
+    let cancelled = false
+
+    async function loadGlobalBadgePercentages() {
+      const profileIds = []
+      const pageSize = 1000
+      let from = 0
+      while (!cancelled) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .range(from, from + pageSize - 1)
+        if (error || !data || data.length === 0) break
+        profileIds.push(...data.map((row) => row.id).filter(Boolean))
+        if (data.length < pageSize) break
+        from += pageSize
+      }
+      if (cancelled || profileIds.length === 0) return
+
+      const rows = []
+      from = 0
+      while (!cancelled) {
+        const { data, error } = await supabase
+          .from('check_ins')
+          .select('user_id, artist, venue, rating, created_at, city, country')
+          .range(from, from + pageSize - 1)
+        if (error || !data || data.length === 0) break
+        rows.push(...data)
+        if (data.length < pageSize) break
+        from += pageSize
+      }
+      if (cancelled) return
+
+      const checkInsByUser = new Map(profileIds.map((id) => [id, []]))
+      for (const row of rows) {
+        const userId = row.user_id
+        if (!checkInsByUser.has(userId)) continue
+        checkInsByUser.get(userId).push({
+          artist: row.artist || '',
+          venue: row.venue || '',
+          rating: Number(row.rating ?? 0),
+          createdAt: row.created_at || '',
+          city: row.city || '',
+          country: row.country || '',
+        })
+      }
+
+      const totals = Object.fromEntries(badges.map((badge) => [badge.id, 0]))
+      for (const userId of profileIds) {
+        const userBadges = evaluateBadges(checkInsByUser.get(userId) || [], [])
+        for (const badge of userBadges) {
+          if (badge.unlocked) totals[badge.id] = (totals[badge.id] ?? 0) + 1
+        }
+      }
+      if (cancelled) return
+      const denominator = Math.max(1, profileIds.length)
+      setGlobalBadgePercentages(
+        Object.fromEntries(
+          Object.entries(totals).map(([badgeId, count]) => [badgeId, Math.round((count / denominator) * 100)])
+        )
+      )
+    }
+
+    loadGlobalBadgePercentages()
+    return () => {
+      cancelled = true
+    }
+  }, [badges])
 
   useEffect(() => {
     let mounted = true
@@ -902,9 +1030,9 @@ export default function ProfileTab({
               {form.displayName || 'Jouw naam'}
               <span className="text-cyan-300">.</span>
             </h2>
-            {unlockedBadges.length > 0 && (
+            {unlockedBadgeHighlights.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {unlockedBadges.slice(0, 4).map((badge) => (
+                {unlockedBadgeHighlights.slice(0, 4).map((badge) => (
                   <span
                     key={`header-badge-${badge.id}`}
                     className="inline-flex items-center gap-1 rounded-full border border-cyan-300/45 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-100"
@@ -1016,58 +1144,48 @@ export default function ProfileTab({
             {badges.filter((badge) => badge.unlocked).length}/{badges.length}
           </p>
         </div>
-        {unlockedBadges.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-2">
-            {unlockedBadges.map((badge) => (
-              <div
-                key={`unlocked-${badge.id}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/50 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-200"
-              >
-                <span aria-hidden="true">{getBadgeEmoji(badge.id)}</span>
-                <span>{badge.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
         <div className="space-y-2">
-          {badges.map((badge) => (
-            <div
-              key={badge.id}
-              className={`rounded-xl border p-3 ${
-                badge.unlocked
-                  ? 'border-emerald-300/35 bg-gradient-to-r from-emerald-500/12 to-cyan-500/12'
-                  : 'border-white/10 bg-zinc-950/60'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-white">
-                  <span className="mr-1.5" aria-hidden="true">
-                    {getBadgeEmoji(badge.id)}
+          {compactBadgeCards.map(({ group, displayBadge, unlockedInGroup, totalInGroup }) => {
+            const completion = Math.min(
+              100,
+              Math.round((displayBadge.progress / Math.max(1, displayBadge.threshold)) * 100)
+            )
+            return (
+              <button
+                key={`compact-badge-${group}`}
+                type="button"
+                onClick={() => setBadgeDetailGroup(group)}
+                className={`w-full rounded-xl border p-3 text-left transition ${
+                  displayBadge.unlocked
+                    ? 'border-emerald-300/35 bg-gradient-to-r from-emerald-500/12 to-cyan-500/12'
+                    : 'border-white/10 bg-zinc-950/60 hover:border-white/25'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-white">
+                    <span className="mr-1.5" aria-hidden="true">
+                      {getBadgeEmoji(displayBadge.id)}
+                    </span>
+                    {getBadgeGroupLabel(group)}
+                  </p>
+                  <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-zinc-300">
+                    {unlockedInGroup}/{totalInGroup}
                   </span>
-                  {badge.name}
+                </div>
+                <p className="mt-1 text-xs text-zinc-300">
+                  Volgende: <span className="font-semibold">{displayBadge.name}</span>
                 </p>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                    badge.unlocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800 text-zinc-400'
-                  }`}
-                >
-                  {badge.unlocked ? 'Unlocked' : `${badge.progress}/${badge.threshold}`}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-zinc-400">{badge.description}</p>
-              {!badge.unlocked && (
+                <p className="mt-1 text-xs text-zinc-500">{displayBadge.description}</p>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-cyan-400/80 to-fuchsia-400/80"
-                    style={{
-                      width: `${Math.min(100, Math.round((badge.progress / Math.max(1, badge.threshold)) * 100))}%`,
-                    }}
+                    style={{ width: `${completion}%` }}
                   />
                 </div>
-              )}
-            </div>
-          ))}
-          {badges.length === 0 && <p className="text-xs text-zinc-500">Nog geen badges berekend.</p>}
+              </button>
+            )
+          })}
+          {compactBadgeCards.length === 0 && <p className="text-xs text-zinc-500">Nog geen badges berekend.</p>}
         </div>
       </article>
 
@@ -1216,6 +1334,59 @@ export default function ProfileTab({
             </div>
           </div>
         </article>
+      )}
+
+      {badgeDetailGroup && (
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/55 p-4 backdrop-blur-sm">
+          <article className="flex max-h-[78svh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/95 shadow-2xl shadow-fuchsia-500/20">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <h3 className="text-lg font-semibold text-white">{getBadgeGroupLabel(badgeDetailGroup)}</h3>
+              <button
+                type="button"
+                onClick={() => setBadgeDetailGroup('')}
+                className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
+              >
+                Sluiten
+              </button>
+            </div>
+            <div className="flex-1 space-y-2 overflow-y-auto p-4">
+              {(groupedBadges.find((item) => item.group === badgeDetailGroup)?.badges ?? []).map((badge) => {
+                const percent = globalBadgePercentages[badge.id] ?? localBadgePercentages[badge.id] ?? 0
+                const progressPercent = Math.min(100, Math.round((badge.progress / Math.max(1, badge.threshold)) * 100))
+                return (
+                  <div
+                    key={`badge-detail-${badge.id}`}
+                    className={`rounded-xl border p-3 ${
+                      badge.unlocked
+                        ? 'border-emerald-300/35 bg-gradient-to-r from-emerald-500/12 to-cyan-500/12'
+                        : 'border-white/10 bg-zinc-950/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-white">
+                        <span className="mr-1.5" aria-hidden="true">
+                          {getBadgeEmoji(badge.id)}
+                        </span>
+                        {badge.name}
+                      </p>
+                      <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-zinc-300">
+                        {badge.unlocked ? 'Unlocked' : `${badge.progress}/${badge.threshold}`}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-400">{badge.description}</p>
+                    <p className="mt-1 text-[11px] text-cyan-200">Ongeveer {percent}% van zichtbare Lyyve-gebruikers heeft deze badge.</p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-cyan-400/80 to-fuchsia-400/80"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </article>
+        </div>
       )}
 
       {relationView && (

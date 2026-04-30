@@ -25,6 +25,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Zie dezelfde artiest 3x live.',
     threshold: 3,
     metric: 'highestArtistCount',
+    group: 'artist-loyalty',
   },
   {
     id: 'die-hard',
@@ -32,6 +33,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Zie dezelfde artiest 5x live.',
     threshold: 5,
     metric: 'highestArtistCount',
+    group: 'artist-loyalty',
   },
   {
     id: 'superfan',
@@ -39,6 +41,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Zie dezelfde artiest 10x live.',
     threshold: 10,
     metric: 'highestArtistCount',
+    group: 'artist-loyalty',
   },
   {
     id: 'festival-scout',
@@ -46,6 +49,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Bezoek 3 verschillende festivals.',
     threshold: 3,
     metric: 'uniqueFestivalCount',
+    group: 'festival-tier',
   },
   {
     id: 'festival-veteran',
@@ -53,6 +57,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Bezoek 5 verschillende festivals.',
     threshold: 5,
     metric: 'uniqueFestivalCount',
+    group: 'festival-tier',
   },
   {
     id: 'festival-legend',
@@ -60,6 +65,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Bezoek 10 verschillende festivals.',
     threshold: 10,
     metric: 'uniqueFestivalCount',
+    group: 'festival-tier',
   },
   {
     id: 'globe-trotter',
@@ -67,6 +73,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Check in binnen 3 landen.',
     threshold: 3,
     metric: 'countryCount',
+    group: 'travel-tier',
   },
   {
     id: 'world-tour',
@@ -74,6 +81,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Check in binnen 5 landen.',
     threshold: 5,
     metric: 'countryCount',
+    group: 'travel-tier',
   },
   {
     id: 'taste-maker',
@@ -81,6 +89,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Check in bij 15 verschillende artiesten.',
     threshold: 15,
     metric: 'uniqueArtistCount',
+    group: 'discovery-tier',
   },
   {
     id: 'scene-curator',
@@ -88,6 +97,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Check in bij 30 verschillende artiesten.',
     threshold: 30,
     metric: 'uniqueArtistCount',
+    group: 'discovery-tier',
   },
   {
     id: 'crowd-favorite',
@@ -95,6 +105,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Plaats 10 check-ins met een rating van 9.0 of hoger.',
     threshold: 10,
     metric: 'highRatingCount',
+    group: 'quality-tier',
   },
   {
     id: 'early-adopter',
@@ -102,6 +113,7 @@ export const BADGE_DEFINITIONS = [
     description: 'Je bent er vroeg bij op Lyyve.',
     threshold: 1,
     metric: 'isEarlyAdopter',
+    group: 'special',
   },
 ]
 
