@@ -357,6 +357,18 @@ export default function ExploreTab({
       })
       .slice(0, 30)
   }, [friends, peopleDirectory, query])
+  const peopleSuggestions = useMemo(() => {
+    const peopleQuery = normalizePeopleSearch(query)
+    if (mode !== 'people' || !peopleQuery) return []
+
+    return rankedPeople
+      .slice(0, 8)
+      .map((person) => ({
+        id: person.id,
+        display: person.displayName || person.username || 'Gebruiker',
+        username: person.username || '',
+      }))
+  }, [mode, query, rankedPeople])
 
   const rankedItems = useMemo(() => {
     const source = [...pool].filter((item) => isRecognizableName(getName(item)))
@@ -636,6 +648,21 @@ export default function ExploreTab({
             mode === 'artist' ? 'Bijv. Fred again..' : mode === 'venue' ? 'Bijv. Lowlands' : 'Bijv. Noa of @noalive'
           }
         />
+        {mode === 'people' && peopleSuggestions.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {peopleSuggestions.map((person) => (
+              <button
+                key={`people-suggestion-${person.id}`}
+                type="button"
+                onClick={() => setQuery(person.username ? `@${person.username}` : person.display)}
+                className="rounded-full border border-white/10 bg-zinc-950 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-sky-400/70 hover:text-sky-200"
+              >
+                {person.display}
+                {person.username ? <span className="ml-1 text-zinc-500">@{person.username}</span> : null}
+              </button>
+            ))}
+          </div>
+        )}
       </label>
 
       {mode === 'people' ? (
