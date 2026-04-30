@@ -428,12 +428,28 @@ function App() {
       }
 
       const visibleUserIds = [session.user.id, ...followingIds]
-      const { data: feedRows, error: feedError } = await supabase
+      let feedRows = null
+      let feedError = null
+      const feedQueryWithPhotoUrls = supabase
         .from('check_ins')
         .select('id, user_id, artist, venue, note, rating, created_at, photo_url, photo_urls, city, country')
         .in('user_id', visibleUserIds)
         .order('created_at', { ascending: false })
         .limit(120)
+      const withPhotoUrlsResult = await feedQueryWithPhotoUrls
+      feedRows = withPhotoUrlsResult.data
+      feedError = withPhotoUrlsResult.error
+
+      if (feedError?.message?.toLowerCase().includes('photo_urls')) {
+        const legacyFeedResult = await supabase
+          .from('check_ins')
+          .select('id, user_id, artist, venue, note, rating, created_at, photo_url, city, country')
+          .in('user_id', visibleUserIds)
+          .order('created_at', { ascending: false })
+          .limit(120)
+        feedRows = legacyFeedResult.data
+        feedError = legacyFeedResult.error
+      }
 
       if (!mounted) return
       if (feedError || !feedRows) {
