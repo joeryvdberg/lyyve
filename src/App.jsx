@@ -1053,6 +1053,7 @@ function App() {
         <ExploreTab
           checkIns={myCheckIns}
           profile={profile}
+          currentUserId={session?.user?.id || profile.id}
           friends={socialFriends}
           followingIds={followingIds}
           onToggleFollow={handleToggleFollow}

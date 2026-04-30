@@ -247,6 +247,7 @@ function mergeByName(primary, secondary) {
 export default function ExploreTab({
   checkIns,
   profile,
+  currentUserId = '',
   friends = [],
   followingIds = [],
   onToggleFollow,
@@ -313,10 +314,16 @@ export default function ExploreTab({
         return
       }
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('profiles')
         .select('id, username, display_name, bio, avatar_url, city')
         .limit(1000)
+
+      if (currentUserId) {
+        query = query.neq('id', currentUserId)
+      }
+
+      const { data, error } = await query
 
       if (!mounted) return
       if (error || !Array.isArray(data)) {
@@ -340,14 +347,16 @@ export default function ExploreTab({
     return () => {
       mounted = false
     }
-  }, [])
+  }, [currentUserId])
 
   const pool = mode === 'artist' ? artists : mode === 'venue' ? venues : []
 
   const normalizedQuery = normalizeText(query)
   const rankedPeople = useMemo(() => {
     const peopleQuery = normalizePeopleSearch(query)
-    const source = peopleDirectory.length > 0 ? [...peopleDirectory] : [...friends]
+    const source = (peopleDirectory.length > 0 ? [...peopleDirectory] : [...friends]).filter(
+      (person) => person.id && person.id !== currentUserId
+    )
     if (!peopleQuery) return source.slice(0, 30)
     return source
       .filter((friend) => {
