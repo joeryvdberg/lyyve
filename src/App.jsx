@@ -138,6 +138,41 @@ function avatarInitials(displayName = '') {
     .join('')
 }
 
+function normalizeUsername(value = '') {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9._-]/g, '')
+}
+
+const BLOCKED_NAME_PARTS = [
+  'kanker',
+  'kkr',
+  'tering',
+  'tyfus',
+  'kut',
+  'fuck',
+  'fck',
+  'shit',
+  'bitch',
+  'hoer',
+  'h0er',
+  'mongool',
+  'nigger',
+  'nigga',
+]
+
+function containsBlockedNameLanguage(value = '') {
+  const compact = String(value)
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+  if (!compact) return false
+  return BLOCKED_NAME_PARTS.some((term) => compact.includes(term))
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('feed')
   const [focusedFriendId, setFocusedFriendId] = useState('')
@@ -613,11 +648,48 @@ function App() {
 
   const handleSaveProfile = useCallback(async (nextProfile) => {
     const mergedProfile = { ...defaultProfile, ...nextProfile, id: 'me' }
+    const normalizedUsername = normalizeUsername(mergedProfile.username)
+    const normalizedDisplayName = String(mergedProfile.displayName || '').trim()
+
+    if (normalizedUsername.length < 3) {
+      throw new Error('Gebruikersnaam moet minimaal 3 tekens zijn.')
+    }
+    if (normalizedDisplayName.length < 2) {
+      throw new Error('Weergavenaam moet minimaal 2 tekens zijn.')
+    }
+    if (containsBlockedNameLanguage(normalizedUsername) || containsBlockedNameLanguage(normalizedDisplayName)) {
+      throw new Error('Scheldwoorden zijn niet toegestaan in gebruikersnaam of weergavenaam.')
+    }
+
+    const duplicateInLoadedProfiles = socialFriends.some(
+      (friend) =>
+        friend.id !== session?.user?.id &&
+        normalizeUsername(friend.username || '') === normalizedUsername
+    )
+    if (duplicateInLoadedProfiles) {
+      throw new Error('Deze gebruikersnaam is al in gebruik.')
+    }
+
     if (hasSupabaseConfig && supabase && session?.user?.id) {
+      const { data: duplicateUserRows, error: duplicateUserError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .ilike('username', normalizedUsername)
+        .neq('id', session.user.id)
+        .limit(1)
+
+      if (duplicateUserError) {
+        throw new Error('Kon gebruikersnaam nu niet controleren. Probeer opnieuw.')
+      }
+
+      if ((duplicateUserRows ?? []).length > 0) {
+        throw new Error('Deze gebruikersnaam is al in gebruik.')
+      }
+
       await supabase.from('profiles').upsert({
         id: session.user.id,
-        username: mergedProfile.username,
-        display_name: mergedProfile.displayName,
+        username: normalizedUsername,
+        display_name: normalizedDisplayName,
         bio: mergedProfile.bio,
         city: mergedProfile.city,
         avatar_url: mergedProfile.avatarUrl || '',
@@ -625,14 +697,19 @@ function App() {
         favorite_artists: mergedProfile.favoriteArtists,
       })
       storeEventRadius(session.user.id, Number(mergedProfile.eventRadiusKm ?? defaultProfile.eventRadiusKm))
-      setProfile({ ...mergedProfile, id: session.user.id })
+      setProfile({
+        ...mergedProfile,
+        username: normalizedUsername,
+        displayName: normalizedDisplayName,
+        id: session.user.id,
+      })
       return
     }
 
-    setProfile(mergedProfile)
+    setProfile({ ...mergedProfile, username: normalizedUsername, displayName: normalizedDisplayName })
     storeEventRadius(null, Number(mergedProfile.eventRadiusKm ?? defaultProfile.eventRadiusKm))
-    await saveProfile(mergedProfile)
-  }, [session])
+    await saveProfile({ ...mergedProfile, username: normalizedUsername, displayName: normalizedDisplayName })
+  }, [session, socialFriends])
 
   const handleUpdateCheckIn = useCallback(
     async (checkInId, updates) => {

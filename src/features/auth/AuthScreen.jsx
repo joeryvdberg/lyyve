@@ -40,6 +40,22 @@ function getAuthMessageFromUrl() {
   return 'De authenticatielink kon niet verwerkt worden. Probeer opnieuw.'
 }
 
+function mapAuthErrorMessage(error) {
+  const raw = String(error?.message || '').toLowerCase()
+  if (
+    raw.includes('user already registered') ||
+    raw.includes('already registered') ||
+    raw.includes('already exists') ||
+    raw.includes('email address is already in use')
+  ) {
+    return 'Dit e-mailadres is al in gebruik. Gebruik inloggen of wachtwoord vergeten.'
+  }
+  if (raw.includes('invalid login credentials')) {
+    return 'Onjuiste inloggegevens. Controleer je e-mail en wachtwoord.'
+  }
+  return error?.message || 'Inloggen mislukt.'
+}
+
 export default function AuthScreen({ forceReset = false }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -59,6 +75,7 @@ export default function AuthScreen({ forceReset = false }) {
     setMessage('')
     setPasswordError('')
     try {
+      const normalizedEmail = email.trim().toLowerCase()
       const redirectTo = getAuthRedirectUrl()
       if (mode === 'signup' || mode === 'reset') {
         const ruleCheck = validatePassword(password)
@@ -76,7 +93,7 @@ export default function AuthScreen({ forceReset = false }) {
 
       if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: {
             emailRedirectTo: redirectTo,
@@ -93,12 +110,12 @@ export default function AuthScreen({ forceReset = false }) {
         setConfirmPassword('')
         setMessage('Wachtwoord aangepast. Log nu opnieuw in.')
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
         if (error) throw error
         setMessage('Welkom terug.')
       }
     } catch (error) {
-      setMessage(error?.message || 'Inloggen mislukt.')
+      setMessage(mapAuthErrorMessage(error))
     } finally {
       setLoading(false)
     }
@@ -238,6 +255,9 @@ export default function AuthScreen({ forceReset = false }) {
               </>
             )}
             {passwordError && <p className="text-xs text-amber-300">{passwordError}</p>}
+            {mode === 'signup' && (
+              <p className="text-xs text-zinc-500">Per e-mailadres is maar 1 account toegestaan.</p>
+            )}
             <button
               type="submit"
               disabled={loading || !hasSupabaseConfig}

@@ -55,6 +55,101 @@ const CITY_SUGGESTIONS = [
   'Emmen',
   'Ede',
   'Sneek',
+  'Ermelo',
+  'Uden',
+  'Nunspeet',
+  'Putten',
+  'Nijkerk',
+  'Barneveld',
+  'Zeewolde',
+  'Dronten',
+  'Urk',
+  'Kampen',
+  'Meppel',
+  'Hoogeveen',
+  'Stadskanaal',
+  'Winschoten',
+  'Veendam',
+  'Drachten',
+  'Heerenveen',
+  'Joure',
+  'Franeker',
+  'Harlingen',
+  'Schagen',
+  'Hoorn',
+  'Enkhuizen',
+  'Heiloo',
+  'Castricum',
+  'Heemskerk',
+  'Beverwijk',
+  'Noordwijk',
+  'Katwijk',
+  'Lisse',
+  'Hillegom',
+  'Aalsmeer',
+  'Uithoorn',
+  'Woerden',
+  'Nieuwegein',
+  'Houten',
+  'Zeist',
+  'Veenendaal',
+  'Wageningen',
+  'Rhenen',
+  'Culemborg',
+  'Gorinchem',
+  'Sliedrecht',
+  'Papendrecht',
+  'Spijkenisse',
+  'Barendrecht',
+  'Ridderkerk',
+  'Schiedam',
+  'Capelle aan den IJssel',
+  'Nieuwerkerk aan den IJssel',
+  'Naaldwijk',
+  'Westland',
+  'Rijswijk',
+  'Voorburg',
+  'Zoeterwoude',
+  'Oegstgeest',
+  'Alphen aan den Rijn',
+  'Waddinxveen',
+  'Krimpen aan den IJssel',
+  'Etten-Leur',
+  'Oosterhout',
+  'Waalwijk',
+  'Kaatsheuvel',
+  'Zaltbommel',
+  'Boxtel',
+  'Vught',
+  'Best',
+  'Veldhoven',
+  'Nuenen',
+  'Veghel',
+  'Udenhout',
+  'Boxmeer',
+  'Cuijk',
+  'Wijchen',
+  'Elst',
+  'Duiven',
+  'Zevenaar',
+  'Doesburg',
+  'Winterswijk',
+  'Aalten',
+  'Oldenzaal',
+  'Borne',
+  'Raalte',
+  'Ommen',
+  'Hardenberg',
+  'Coevorden',
+  'Terneuzen',
+  'Goes',
+  'Vlissingen',
+  'Zierikzee',
+  'Hellevoetsluis',
+  'Brielle',
+  'Leidschendam',
+  'Pijnacker',
+  'Nootdorp',
 ]
 
 function avatarInitials(displayName = '') {
@@ -92,6 +187,7 @@ export default function ProfileTab({
   const [commentDrafts, setCommentDrafts] = useState({})
   const [openComments, setOpenComments] = useState({})
   const [commentErrors, setCommentErrors] = useState({})
+  const [saveError, setSaveError] = useState('')
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(profile)
@@ -268,8 +364,16 @@ export default function ProfileTab({
   }
 
   const handleChange = (field) => (event) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }))
+    const nextValue =
+      field === 'username'
+        ? String(event.target.value)
+            .toLowerCase()
+            .replace(/\s+/g, '')
+            .replace(/[^a-z0-9._-]/g, '')
+        : event.target.value
+    setForm((prev) => ({ ...prev, [field]: nextValue }))
     setSaveState('idle')
+    setSaveError('')
   }
 
   const handleAvatarFileChange = async (event) => {
@@ -285,9 +389,15 @@ export default function ProfileTab({
     event.preventDefault()
     if (!hasChanges) return
     setSaveState('saving')
-    await onSaveProfile(form)
-    setSaveState('saved')
-    setIsEditing(false)
+    setSaveError('')
+    try {
+      await onSaveProfile(form)
+      setSaveState('saved')
+      setIsEditing(false)
+    } catch (error) {
+      setSaveState('idle')
+      setSaveError(error instanceof Error ? error.message : 'Opslaan mislukt. Probeer opnieuw.')
+    }
   }
 
   if (isEditing) {
@@ -330,6 +440,8 @@ export default function ProfileTab({
                 onChange={handleChange('username')}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
                 placeholder="Bijv. joerylive"
+                autoCapitalize="off"
+                autoCorrect="off"
               />
             </label>
             <label className="block text-sm text-zinc-300">
@@ -395,6 +507,7 @@ export default function ProfileTab({
               {saveState === 'saving' ? 'Opslaan...' : 'Profiel opslaan'}
             </button>
             {saveState === 'saved' && <p className="text-xs text-emerald-300">Profiel opgeslagen.</p>}
+            {saveError && <p className="text-xs text-amber-300">{saveError}</p>}
           </form>
         </article>
       </section>
