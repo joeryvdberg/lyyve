@@ -1085,7 +1085,7 @@ export default function ProfileTab({
           <button
             type="button"
             onClick={onDeleteAccount}
-            className="ml-2 mt-4 rounded-xl border border-rose-300/35 bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-200 transition hover:border-rose-200/50"
+            className="ml-2 mt-4 rounded-xl border border-white/10 bg-zinc-950/55 px-3 py-2 text-xs font-medium text-zinc-400 transition hover:border-white/20 hover:text-zinc-300"
           >
             Account verwijderen
           </button>
