@@ -224,6 +224,10 @@ function App() {
     if (!hasSupabaseConfig || !supabase) return
 
     let mounted = true
+    const authTimeout = window.setTimeout(() => {
+      if (!mounted) return
+      setAuthLoading(false)
+    }, 8000)
     supabase.auth
       .getSession()
       .then(({ data }) => {
@@ -236,6 +240,7 @@ function App() {
       })
       .finally(() => {
         if (!mounted) return
+        window.clearTimeout(authTimeout)
         setAuthLoading(false)
       })
 
@@ -247,12 +252,17 @@ function App() {
 
     return () => {
       mounted = false
+      window.clearTimeout(authTimeout)
       subscription.unsubscribe()
     }
   }, [])
 
   useEffect(() => {
     let mounted = true
+    const loadTimeout = window.setTimeout(() => {
+      if (!mounted) return
+      setCheckInsLoaded(true)
+    }, 8000)
 
     async function loadCheckIns() {
       if (hasSupabaseConfig && supabase && session?.user?.id) {
@@ -281,6 +291,7 @@ function App() {
           }))
         )
         if (mounted) setCheckInsLoaded(true)
+        window.clearTimeout(loadTimeout)
         return
       }
       if (hasSupabaseConfig) {
@@ -288,6 +299,7 @@ function App() {
         if (!mounted) return
         setMyCheckIns([])
         setCheckInsLoaded(true)
+        window.clearTimeout(loadTimeout)
         return
       }
 
@@ -301,11 +313,13 @@ function App() {
         setMyCheckIns(items)
       }
       if (mounted) setCheckInsLoaded(true)
+      window.clearTimeout(loadTimeout)
     }
 
     loadCheckIns()
     return () => {
       mounted = false
+      window.clearTimeout(loadTimeout)
     }
   }, [session?.user?.email, session?.user?.id])
 
@@ -564,6 +578,10 @@ function App() {
 
   useEffect(() => {
     let mounted = true
+    const loadTimeout = window.setTimeout(() => {
+      if (!mounted) return
+      setProfileLoaded(true)
+    }, 8000)
 
     async function loadProfile() {
       if (hasSupabaseConfig && supabase && session?.user?.id) {
@@ -638,6 +656,7 @@ function App() {
           })
         }
         if (mounted) setProfileLoaded(true)
+        window.clearTimeout(loadTimeout)
         return
       }
       if (hasSupabaseConfig) {
@@ -645,6 +664,7 @@ function App() {
         if (!mounted) return
         setProfile(defaultProfile)
         setProfileLoaded(true)
+        window.clearTimeout(loadTimeout)
         return
       }
 
@@ -658,11 +678,13 @@ function App() {
         await saveProfile(defaultProfile)
       }
       if (mounted) setProfileLoaded(true)
+      window.clearTimeout(loadTimeout)
     }
 
     loadProfile()
     return () => {
       mounted = false
+      window.clearTimeout(loadTimeout)
     }
   }, [session?.user?.email, session?.user?.id])
 
