@@ -52,6 +52,10 @@ function normalizeText(value) {
     .trim()
 }
 
+function normalizePeopleSearch(value) {
+  return normalizeText(value).replace(/^@+/, '')
+}
+
 function isRecognizableName(rawName) {
   const name = rawName.trim()
   if (!name) return false
@@ -302,16 +306,17 @@ export default function ExploreTab({
 
   const normalizedQuery = normalizeText(query)
   const rankedPeople = useMemo(() => {
+    const peopleQuery = normalizePeopleSearch(query)
     const source = [...friends]
-    if (!normalizedQuery) return source.slice(0, 20)
+    if (!peopleQuery) return source.slice(0, 30)
     return source
       .filter((friend) => {
         const displayName = normalizeText(friend.displayName || '')
-        const username = normalizeText(friend.username || '')
-        return displayName.includes(normalizedQuery) || username.includes(normalizedQuery)
+        const username = normalizePeopleSearch(friend.username || '')
+        return displayName.includes(peopleQuery) || username.includes(peopleQuery)
       })
       .slice(0, 30)
-  }, [friends, normalizedQuery])
+  }, [friends, query])
 
   const rankedItems = useMemo(() => {
     const source = [...pool].filter((item) => isRecognizableName(getName(item)))
