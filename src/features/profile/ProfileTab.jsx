@@ -207,6 +207,32 @@ function rankArtistSuggestions(pool, query) {
     .slice(0, 8)
 }
 
+function mapPasswordUpdateError(error) {
+  const raw = String(error?.message || '').toLowerCase()
+  if (
+    raw.includes('same password') ||
+    raw.includes('same as the') ||
+    (raw.includes('different') && raw.includes('old')) ||
+    (raw.includes('new password') && raw.includes('different'))
+  ) {
+    return 'Het nieuwe wachtwoord moet anders zijn dan je huidige wachtwoord.'
+  }
+  if (raw.includes('password') && raw.includes('least')) {
+    return 'Het wachtwoord is volgens de server nog niet sterk genoeg. Voeg hoofd-/kleine letters, een cijfer en een symbool toe (zoals hierboven beschreven).'
+  }
+  if (
+    raw.includes('reauthenticate') ||
+    raw.includes('session expired') ||
+    raw.includes('jwt expired')
+  ) {
+    return 'De sessie is verlopen of ongeldig. Log uit, log opnieuw in op dit apparaat en probeer nog eens.'
+  }
+  if (error?.message && String(error.message).trim()) {
+    return error.message
+  }
+  return 'Wachtwoord bijwerken mislukt.'
+}
+
 function validatePasswordStrength(value) {
   const minLength = value.length >= 10
   const hasLower = /[a-z]/.test(value)
@@ -704,7 +730,7 @@ export default function ProfileTab({
       setNewPassword('')
       setConfirmNewPassword('')
     } catch (error) {
-      setPasswordChangeMessage(error?.message || 'Wachtwoord bijwerken mislukt.')
+      setPasswordChangeMessage(mapPasswordUpdateError(error))
     } finally {
       setPasswordChangeBusy(false)
     }

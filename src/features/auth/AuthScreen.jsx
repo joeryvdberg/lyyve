@@ -53,8 +53,12 @@ function mapAuthErrorMessage(error) {
   ) {
     return 'Dit e-mailadres is al in gebruik. Gebruik inloggen of wachtwoord vergeten.'
   }
-  if (raw.includes('invalid login credentials')) {
-    return 'Onjuiste inloggegevens. Controleer je e-mail en wachtwoord.'
+  if (
+    raw.includes('invalid login credentials') ||
+    raw.includes('invalid grant') ||
+    raw.includes('invalid_credentials')
+  ) {
+    return 'Onjuiste inloggegevens. Tip: kopieer e-mail en wachtwoord zonder extra spaties. Account via Google? Gebruik “Ga verder met Google”: dan gebruik je geen wachtwoord voor dit e‑mail loginveld.'
   }
   if (
     raw.includes('too many requests') ||
