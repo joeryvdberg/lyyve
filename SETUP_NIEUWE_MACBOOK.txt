@@ -1,0 +1,44 @@
+Lyyve — nieuwe MacBook (stappen die jij nog op de nieuwe machine doet)
+=======================================================================
+De code staat op GitHub: joeryvdberg/lyyve  (branch: main)
+.env wordt NOOIT gecommit (.gitignore) — AirDrop/USB/wachtwoordkastje gebruiken voor je lokale .env
+
+1) Basis op de nieuwe Mac
+   - Xcode Command Line Tools (voor Git): Terminal → xcode-select --install
+   - Node.js LTS van https://nodejs.org/ → controleer: node -v  en  npm -v
+   - Optioneel Cursor installeren van https://cursor.com/
+
+2A) Als je via Git wilt werken (aanbevolen)
+   mkdir -p ~/Projects
+   cd ~/Projects
+   git clone git@github.com:joeryvdberg/lyyve.git
+   cd lyyve
+   Zonder SSH-key gebruik dan HTTPS clone vanaf de repo-pagina op GitHub.
+
+2B) Als je via AirDrop de hele map hebt gekregen
+   Zet map bijvoorbeeld in ~/Projects/Lyyve
+   Als node_modules mist of enorm is verwijderd: in die map staat nog steeds punt 3.
+
+3) Dependencies
+   cd ~/Projects/lyyve    (pas pad aan naar jouw map)
+   npm install
+
+4) Lokale secrets
+   Kopieer je oude bestand .env naar de root van deze map
+   Of: kopieer .env.example naar .env en vul de waarden in (Supabase, Bandsintown, Turnstile site key).
+
+5) Check
+   npm run dev
+   Open de URL die Vite print (meestal http://localhost:5173 )
+
+6) Optioneel kwaliteitscheck
+   npm run build
+   npm run lint
+
+7) Deploy op GitHub Pages
+   Blijft via GitHub Actions; secrets staan op GitHub, niet alleen op je laptop.
+   Bij problemen locally: vergeet niet VITE_TURNSTILE_SITE_KEY in GitHub Secrets.
+
+SSH voor GitHub (éénmalig op nieuwe Mac)
+   ssh-keygen -t ed25519 -C "jouw@email"
+   cat ~/.ssh/id_ed25519.pub  → plak bij GitHub → Settings → SSH keys
