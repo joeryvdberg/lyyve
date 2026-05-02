@@ -148,6 +148,13 @@ function normalizeUsername(value = '') {
     .replace(/[^a-z0-9._-]/g, '')
 }
 
+function recoveryFlagFromBrowserUrl() {
+  if (typeof window === 'undefined') return false
+  return (
+    window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery')
+  )
+}
+
 const BLOCKED_NAME_PARTS = [
   'kanker',
   'kkr',
@@ -191,6 +198,7 @@ function buildUsernameFromEmailOrId(email = '', userId = '') {
 }
 
 function App() {
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(recoveryFlagFromBrowserUrl)
   const [activeTab, setActiveTab] = useState('feed')
   const [focusedFriendId, setFocusedFriendId] = useState('')
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
@@ -211,7 +219,7 @@ function App() {
   const [socialFeedError, setSocialFeedError] = useState('')
   const [followSyncError, setFollowSyncError] = useState('')
   const lastSocialFeedRefreshAtRef = useRef(0)
-  const socialFeedRefreshCooldownMs = 12_000
+  const socialFeedRefreshCooldownMs = 4_000
 
   const requestSocialFeedRefresh = useCallback((force = false) => {
     const now = Date.now()
@@ -248,7 +256,13 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecoveryMode(true)
+      }
+      if (event === 'SIGNED_OUT') {
+        setPasswordRecoveryMode(false)
+      }
       setSession(nextSession ?? null)
     })
 
@@ -517,6 +531,8 @@ function App() {
             bio: row.bio || '',
             avatarUrl: row.avatar_url || '',
             city: row.city || '',
+            favoriteGenres: row.favorite_genres || '',
+            favoriteArtists: row.favorite_artists || '',
             checkIns: [],
           },
         ])
@@ -532,6 +548,8 @@ function App() {
             bio: linkedProfile?.bio || '',
             avatarUrl: linkedProfile?.avatar_url || '',
             city: linkedProfile?.city || '',
+            favoriteGenres: linkedProfile?.favorite_genres || '',
+            favoriteArtists: linkedProfile?.favorite_artists || '',
             checkIns: [],
           }
         }
@@ -660,7 +678,6 @@ function App() {
             avatar_url: '',
             favorite_genres: fallbackGenres,
             favorite_artists: fallbackArtists,
-            username_changed_at: new Date().toISOString(),
           }
           const { error: initialProfileError } = await supabase.from('profiles').upsert(initialProfile)
           if (initialProfileError) {
@@ -827,17 +844,10 @@ function App() {
       throw new Error('Deze gebruikersnaam is al in gebruik.')
     }
 
-    if (usernameChanged && usernameChangedAtRaw) {
-      const lastChangedAt = new Date(usernameChangedAtRaw).getTime()
-      if (Number.isFinite(lastChangedAt)) {
-        const cooldownMs = 30 * 24 * 60 * 60 * 1000
-        const nextAllowedAt = new Date(lastChangedAt + cooldownMs)
-        if (Date.now() < nextAllowedAt.getTime()) {
-          throw new Error(
-            `Je kunt je gebruikersnaam niet te vaak wijzigen. Volgende wijziging mogelijk na ${nextAllowedAt.toLocaleDateString('nl-NL')}.`
-          )
-        }
-      }
+    if (usernameChanged && previousUsername.length >= 3) {
+      throw new Error(
+        'Je gebruikersnaam kun je maar één keer kiezen. Je weergavenaam kun je gewoon aanpassen.'
+      )
     }
 
     if (hasSupabaseConfig && supabase && session?.user?.id) {
@@ -1186,16 +1196,13 @@ function App() {
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
-  const inRecoveryFlow =
-    typeof window !== 'undefined' &&
-    (window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery'))
 
   if (authLoading) {
     return <div className="min-h-svh bg-zinc-950" />
   }
 
-  if (hasSupabaseConfig && (!session || inRecoveryFlow)) {
-    return <AuthScreen forceReset={inRecoveryFlow} />
+  if (hasSupabaseConfig && (!session || passwordRecoveryMode)) {
+    return <AuthScreen forceReset={passwordRecoveryMode} />
   }
 
   return (

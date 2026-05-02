@@ -272,9 +272,9 @@ export default function FeedTab({
     setMenuOpenId('')
   }
 
-  async function triggerManualRefresh() {
+  function triggerManualRefresh(forceCooldownBypass = false) {
     if (!onManualRefresh) return
-    const refreshed = onManualRefresh(false)
+    const refreshed = onManualRefresh(forceCooldownBypass)
     setRefreshHint(refreshed ? 'Feed vernieuwd.' : 'Even wachten voor je opnieuw ververst.')
     window.setTimeout(() => setRefreshHint(''), 2200)
   }
@@ -296,26 +296,39 @@ export default function FeedTab({
     const shouldRefresh = pullDistance > 70
     setPullStartY(0)
     setPullDistance(0)
-    if (shouldRefresh) triggerManualRefresh()
+    if (shouldRefresh) triggerManualRefresh(true)
   }
+
+  const pullProgress = pullDistance > 0 ? pullDistance / 70 : refreshHint ? 1 : 0
 
   return (
     <section className="space-y-4" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+      <div className="-mb-1 flex flex-col items-center gap-1 pb-2">
+        <div
+          className="relative flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900/40 transition-opacity"
+          style={{ opacity: Math.max(pullProgress * 0.85 + 0.08, refreshHint ? 1 : pullProgress > 0.02 ? 0.95 : 0.15) }}
+        >
+          <div
+            className="absolute h-8 w-8 rounded-full border-2 border-cyan-400/25 border-t-cyan-400 transition-transform"
+            style={{
+              transform: `rotate(${Math.min(pullDistance, 70) * 3.8}deg) scale(${pullProgress > 0 || refreshHint ? 1 : 0.92})`,
+            }}
+          />
+        </div>
+        <p className="text-[11px] text-zinc-500">Veeg omlaag om te vernieuwen</p>
+        <button
+          type="button"
+          onClick={() => triggerManualRefresh(false)}
+          className="text-[11px] text-cyan-300/90 underline-offset-2 hover:text-cyan-200 hover:underline"
+        >
+          Nu vernieuwen
+        </button>
+        {refreshHint && <p className="text-[11px] text-cyan-300/95">{refreshHint}</p>}
+      </div>
+
       <h2 className="text-2xl font-semibold text-white">
         Feed<span className="text-cyan-300">.</span>
       </h2>
-      <div className="rounded-xl border border-white/10 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-400">
-        <div className="flex items-center justify-end">
-          <button
-            type="button"
-            onClick={triggerManualRefresh}
-            className="rounded-lg border border-white/15 px-2 py-1 text-[11px] text-zinc-300 hover:border-white/30"
-          >
-            Vernieuwen
-          </button>
-        </div>
-        {refreshHint && <p className="mt-1 text-[11px] text-cyan-300">{refreshHint}</p>}
-      </div>
       <p className="text-sm text-zinc-400">
         Hier zie je check-ins van vrienden: welke artiest ze zagen, hun score en opmerking.
       </p>

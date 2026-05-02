@@ -189,6 +189,13 @@ export default function AuthScreen({ forceReset = false }) {
     }
   }, [mode])
 
+  useEffect(() => {
+    if (!forceReset) return
+    setMode('reset')
+    setPendingVerificationEmail('')
+    setPasswordError('')
+  }, [forceReset])
+
   function consumeCaptchaToken() {
     setCaptchaToken('')
     setCaptchaWidgetNonce((prev) => prev + 1)

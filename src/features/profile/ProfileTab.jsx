@@ -207,6 +207,45 @@ function rankArtistSuggestions(pool, query) {
     .slice(0, 8)
 }
 
+function validatePasswordStrength(value) {
+  const minLength = value.length >= 10
+  const hasLower = /[a-z]/.test(value)
+  const hasUpper = /[A-Z]/.test(value)
+  const hasNumber = /\d/.test(value)
+  const hasSpecial = /[^A-Za-z0-9]/.test(value)
+  const hasNoWhitespace = !/\s/.test(value)
+  const valid = minLength && hasLower && hasUpper && hasNumber && hasSpecial && hasNoWhitespace
+  return { valid, minLength, hasLower, hasUpper, hasNumber, hasSpecial, hasNoWhitespace }
+}
+
+function normalizeUsernameField(value = '') {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9._-]/g, '')
+}
+
+function ProfileTasteReadout({ favoriteGenres = '', favoriteArtists = '', className = '' }) {
+  const g = String(favoriteGenres || '').trim()
+  const a = String(favoriteArtists || '').trim()
+  if (!g && !a) return null
+  return (
+    <div className={className}>
+      {g && (
+        <p className="text-xs leading-relaxed text-zinc-400">
+          <span className="font-semibold text-zinc-300">Favoriete genres</span>: {g}
+        </p>
+      )}
+      {a && (
+        <p className={`text-xs leading-relaxed text-zinc-400 ${g ? 'mt-1' : ''}`}>
+          <span className="font-semibold text-zinc-300">Favoriete artiesten</span>: {a}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function ProfileTab({
   profile,
   onSaveProfile,
@@ -238,13 +277,17 @@ export default function ProfileTab({
   const [artistPool, setArtistPool] = useState([])
   const [badgeDetailGroup, setBadgeDetailGroup] = useState('')
   const [globalBadgePercentages, setGlobalBadgePercentages] = useState({})
-  const [showAccountMenu, setShowAccountMenu] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [passwordChangeMessage, setPasswordChangeMessage] = useState('')
+  const [passwordChangeBusy, setPasswordChangeBusy] = useState(false)
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(profile)
   }, [form, profile])
 
   const initials = avatarInitials(form.displayName)
+  const usernameFrozen = normalizeUsernameField(profile.username || '').length >= 3
   const selectedFriend = friends.find((friend) => friend.id === selectedFriendId) ?? null
   const followers = friends.filter((friend) => followerIdsExternal.includes(friend.id))
   const following = friends.filter((friend) => followingIds.includes(friend.id))
@@ -635,6 +678,38 @@ export default function ProfileTab({
     }
   }
 
+  async function handlePasswordUpdate(event) {
+    event.preventDefault()
+    setPasswordChangeMessage('')
+    if (!hasSupabaseConfig || !supabase) {
+      setPasswordChangeMessage('Wachtwoord wijzigen werkt alleen in online mode.')
+      return
+    }
+    const rule = validatePasswordStrength(newPassword)
+    if (!rule.valid) {
+      setPasswordChangeMessage(
+        'Gebruik minimaal 10 tekens met hoofdletter, kleine letter, cijfer en symbool, zonder spaties.'
+      )
+      return
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordChangeMessage('De wachtwoorden komen niet overeen.')
+      return
+    }
+    setPasswordChangeBusy(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) throw error
+      setPasswordChangeMessage('Wachtwoord bijgewerkt.')
+      setNewPassword('')
+      setConfirmNewPassword('')
+    } catch (error) {
+      setPasswordChangeMessage(error?.message || 'Wachtwoord bijwerken mislukt.')
+    } finally {
+      setPasswordChangeBusy(false)
+    }
+  }
+
   if (isEditing) {
     return (
       <section className="space-y-4">
@@ -673,12 +748,17 @@ export default function ProfileTab({
               <input
                 value={form.username}
                 onChange={handleChange('username')}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                disabled={usernameFrozen}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2 disabled:cursor-not-allowed disabled:border-white/5 disabled:text-zinc-500"
                 placeholder="Bijv. alexbeats"
                 autoCapitalize="off"
                 autoCorrect="off"
               />
-              <p className="mt-1 text-xs text-zinc-500">Gebruikersnaam wijzigen kan maximaal 1x per 30 dagen.</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {usernameFrozen
+                  ? 'Je gebruikersnaam kun je maar één keer kiezen; die staat nu vast.'
+                  : 'Je kunt nog een gebruikersnaam instellen van minimaal 3 tekens.'}
+              </p>
             </label>
             <label className="block text-sm text-zinc-300">
               Bio
@@ -786,6 +866,11 @@ export default function ProfileTab({
           </h2>
           <p className="mt-1 text-sm text-zinc-400">@{selectedFriend.username}</p>
           <p className="mt-3 text-sm text-zinc-300">{selectedFriend.bio}</p>
+          <ProfileTasteReadout
+            favoriteGenres={selectedFriend.favoriteGenres}
+            favoriteArtists={selectedFriend.favoriteArtists}
+            className="mt-3"
+          />
           <button
             type="button"
             onClick={() => toggleFollow(selectedFriend.id)}
@@ -1061,28 +1146,91 @@ export default function ProfileTab({
           </div>
         </div>
         <p className="mt-3 text-sm text-zinc-300">{form.bio || 'Voeg een korte bio toe.'}</p>
+        <ProfileTasteReadout favoriteGenres={form.favoriteGenres} favoriteArtists={form.favoriteArtists} className="mt-3" />
         {forceProfileCompletion && (
           <p className="mt-3 rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
             Maak je profiel compleet (naam, gebruikersnaam en favorieten) om alles uit Lyyve te halen.
           </p>
         )}
-        <button
-          type="button"
-          onClick={() => setIsEditing(true)}
-          className="mt-4 rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/30"
-        >
-          Profiel bewerken
-        </button>
-        {onSignOut && (
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={onSignOut}
-            className="ml-2 mt-4 rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/30"
+            onClick={() => setIsEditing(true)}
+            className="rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/30"
           >
-            Uitloggen
+            Profiel bewerken
           </button>
+          {onSignOut && (
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/30"
+            >
+              Uitloggen
+            </button>
+          )}
+        </div>
+        {onDeleteAccount && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => onDeleteAccount()}
+              className="text-[11px] text-zinc-500 underline-offset-2 transition hover:text-red-400/90 hover:underline"
+            >
+              Account verwijderen
+            </button>
+          </div>
         )}
       </article>
+
+      {hasSupabaseConfig && supabase && (
+        <article className="rounded-3xl border border-emerald-300/25 bg-zinc-900/65 p-4 shadow-lg shadow-emerald-500/10 backdrop-blur-xl">
+          <h3 className="text-base font-semibold text-white">
+            Beveiliging<span className="text-emerald-300">.</span>
+          </h3>
+          <p className="mt-2 text-xs text-zinc-400">Stel een nieuw inlogwachtwoord in (alleen dit app-account).</p>
+          <form className="mt-3 space-y-3" onSubmit={handlePasswordUpdate}>
+            <label className="block text-sm text-zinc-300">
+              Nieuw wachtwoord
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(event) => {
+                  setNewPassword(event.target.value)
+                  setPasswordChangeMessage('')
+                }}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-emerald-400/80 placeholder:text-zinc-500 focus:ring-2"
+                placeholder="Min. 10 tekens, hoofd-/kleine letter…"
+              />
+            </label>
+            <label className="block text-sm text-zinc-300">
+              Bevestig wachtwoord
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={confirmNewPassword}
+                onChange={(event) => {
+                  setConfirmNewPassword(event.target.value)
+                  setPasswordChangeMessage('')
+                }}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-emerald-400/80 placeholder:text-zinc-500 focus:ring-2"
+                placeholder="Herhaal wachtwoord"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={passwordChangeBusy || !newPassword.trim() || !confirmNewPassword.trim()}
+              className="w-full rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300/65 disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {passwordChangeBusy ? 'Bezig…' : 'Wachtwoord opslaan'}
+            </button>
+            {passwordChangeMessage && (
+              <p className="text-xs text-zinc-300">{passwordChangeMessage}</p>
+            )}
+          </form>
+        </article>
+      )}
 
       <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
         <div className="mb-3 flex items-center gap-6">
@@ -1226,7 +1374,12 @@ export default function ProfileTab({
           </div>
 
           <p className="text-sm text-zinc-300">{selectedFriend.bio}</p>
-          <div className="grid grid-cols-4 gap-2">
+          <ProfileTasteReadout
+            favoriteGenres={selectedFriend.favoriteGenres}
+            favoriteArtists={selectedFriend.favoriteArtists}
+            className="mt-2"
+          />
+          <div className="mt-3 grid grid-cols-4 gap-2">
             <div className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-center">
               <p className="text-sm font-semibold text-white">{friendStats.total}</p>
               <p className="text-[11px] text-zinc-400">Check-ins</p>
@@ -1471,32 +1624,6 @@ export default function ProfileTab({
                   ))}
             </div>
           </article>
-        </div>
-      )}
-
-      {onDeleteAccount && (
-        <div className="pt-2 text-center">
-          <button
-            type="button"
-            onClick={() => setShowAccountMenu((prev) => !prev)}
-            className="text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-400 hover:underline"
-          >
-            Account-opties
-          </button>
-          {showAccountMenu && (
-            <div className="mx-auto mt-2 w-full max-w-xs overflow-hidden rounded-xl border border-white/10 bg-zinc-900/70">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAccountMenu(false)
-                  onDeleteAccount()
-                }}
-                className="block w-full px-3 py-2 text-center text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-300"
-              >
-                Account verwijderen
-              </button>
-            </div>
-          )}
         </div>
       )}
 
