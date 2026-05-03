@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useEffect } from 'react'
 import { getFeedInteractions, saveFeedInteraction } from '../../lib/db'
 import { hasSupabaseConfig, supabase } from '../../lib/supabase'
@@ -24,9 +24,8 @@ export default function FeedTab({
   const [editingId, setEditingId] = useState('')
   const [menuOpenId, setMenuOpenId] = useState('')
   const [editDraft, setEditDraft] = useState({ artist: '', venue: '', note: '', rating: 8, photoDataUrl: '' })
-  const [pullStartY, setPullStartY] = useState(0)
-  const [pullDistance, setPullDistance] = useState(0)
-  const [refreshHint, setRefreshHint] = useState('')
+  const pullStartYRef = useRef(0)
+  const pullDistanceRef = useRef(0)
 
   const renderedFeedItems = feedItems.length
     ? feedItems
@@ -272,60 +271,28 @@ export default function FeedTab({
     setMenuOpenId('')
   }
 
-  function triggerManualRefresh(forceCooldownBypass = false) {
-    if (!onManualRefresh) return
-    const refreshed = onManualRefresh(forceCooldownBypass)
-    setRefreshHint(refreshed ? 'Feed vernieuwd.' : 'Even wachten voor je opnieuw ververst.')
-    window.setTimeout(() => setRefreshHint(''), 2200)
-  }
-
   function handleTouchStart(event) {
     if (window.scrollY > 6) return
-    setPullStartY(event.touches[0]?.clientY ?? 0)
-    setPullDistance(0)
+    pullStartYRef.current = event.touches[0]?.clientY ?? 0
+    pullDistanceRef.current = 0
   }
 
   function handleTouchMove(event) {
-    if (!pullStartY || window.scrollY > 6) return
+    if (!pullStartYRef.current || window.scrollY > 6) return
     const currentY = event.touches[0]?.clientY ?? 0
-    const delta = Math.max(0, currentY - pullStartY)
-    setPullDistance(Math.min(100, delta))
+    const delta = Math.max(0, currentY - pullStartYRef.current)
+    pullDistanceRef.current = Math.min(100, delta)
   }
 
   function handleTouchEnd() {
-    const shouldRefresh = pullDistance > 70
-    setPullStartY(0)
-    setPullDistance(0)
-    if (shouldRefresh) triggerManualRefresh(true)
+    const shouldRefresh = pullDistanceRef.current > 70
+    pullStartYRef.current = 0
+    pullDistanceRef.current = 0
+    if (shouldRefresh) onManualRefresh?.(true)
   }
-
-  const pullProgress = pullDistance > 0 ? pullDistance / 70 : refreshHint ? 1 : 0
 
   return (
     <section className="space-y-4" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-      <div className="-mb-1 flex flex-col items-center gap-1 pb-2">
-        <div
-          className="relative flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900/40 transition-opacity"
-          style={{ opacity: Math.max(pullProgress * 0.85 + 0.08, refreshHint ? 1 : pullProgress > 0.02 ? 0.95 : 0.15) }}
-        >
-          <div
-            className="absolute h-8 w-8 rounded-full border-2 border-cyan-400/25 border-t-cyan-400 transition-transform"
-            style={{
-              transform: `rotate(${Math.min(pullDistance, 70) * 3.8}deg) scale(${pullProgress > 0 || refreshHint ? 1 : 0.92})`,
-            }}
-          />
-        </div>
-        <p className="text-[11px] text-zinc-500">Veeg omlaag om te vernieuwen</p>
-        <button
-          type="button"
-          onClick={() => triggerManualRefresh(false)}
-          className="text-[11px] text-cyan-300/90 underline-offset-2 hover:text-cyan-200 hover:underline"
-        >
-          Nu vernieuwen
-        </button>
-        {refreshHint && <p className="text-[11px] text-cyan-300/95">{refreshHint}</p>}
-      </div>
-
       <h2 className="text-2xl font-semibold text-white">
         Feed<span className="text-cyan-300">.</span>
       </h2>
