@@ -153,6 +153,29 @@ const CITY_SUGGESTIONS = [
   'Nootdorp',
 ]
 
+const PROFILE_GENRE_OPTIONS = [
+  'House',
+  'Techno',
+  'Indie Dance',
+  'Drum & Bass',
+  'Hip-Hop',
+  'Pop',
+  'Rock',
+  'Afro',
+  'Trance',
+  'Hardstyle',
+  'Disco',
+  'Latin',
+  'R&B',
+  'Soul',
+  'Ambient',
+  'Jazz',
+  'Funk',
+  'Afrobeats',
+  'UK Garage',
+  'Melodic Techno',
+]
+
 function avatarInitials(displayName = '') {
   const parts = displayName
     .split(' ')
@@ -307,6 +330,7 @@ export default function ProfileTab({
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [passwordChangeMessage, setPasswordChangeMessage] = useState('')
   const [passwordChangeBusy, setPasswordChangeBusy] = useState(false)
+  const [profileEditSection, setProfileEditSection] = useState('')
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(profile)
@@ -558,6 +582,10 @@ export default function ProfileTab({
   }, [forceProfileCompletion, isEditing])
 
   useEffect(() => {
+    if (!isEditing) setProfileEditSection('')
+  }, [isEditing])
+
+  useEffect(() => {
     if (onToggleFollow) return
     const stored = window.localStorage.getItem('lyyve-following-ids')
     if (stored) {
@@ -665,6 +693,79 @@ export default function ProfileTab({
     setSaveError('')
   }
 
+  function toggleProfileGenre(genreOption) {
+    const canonicalGenre =
+      PROFILE_GENRE_OPTIONS.find((p) => normalizeText(p) === normalizeText(genreOption)) || genreOption
+
+    setForm((prev) => {
+      const tokens = prev.favoriteGenres
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+
+      const extras = tokens.filter(
+        (t) => !PROFILE_GENRE_OPTIONS.some((p) => normalizeText(p) === normalizeText(t))
+      )
+
+      let presetSelections = PROFILE_GENRE_OPTIONS.filter((p) =>
+        tokens.some((t) => normalizeText(t) === normalizeText(p))
+      )
+
+      const isOn = presetSelections.some((p) => normalizeText(p) === normalizeText(canonicalGenre))
+      if (isOn) {
+        presetSelections = presetSelections.filter(
+          (p) => normalizeText(p) !== normalizeText(canonicalGenre)
+        )
+      } else {
+        presetSelections = [...presetSelections, canonicalGenre]
+      }
+
+      const orderedPresets = PROFILE_GENRE_OPTIONS.filter((p) =>
+        presetSelections.some((s) => normalizeText(s) === normalizeText(p))
+      )
+
+      return { ...prev, favoriteGenres: [...orderedPresets, ...extras].join(', ') }
+    })
+    setSaveState('idle')
+    setSaveError('')
+  }
+
+  function favoriteGenresExtrasValue() {
+    const tokens = String(form.favoriteGenres || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    return tokens
+      .filter((t) => !PROFILE_GENRE_OPTIONS.some((p) => normalizeText(p) === normalizeText(t)))
+      .join(', ')
+  }
+
+  function setFavoriteGenresExtrasRaw(extrasRaw) {
+    const extraToks = String(extrasRaw || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+
+    setForm((prev) => {
+      const tokens = prev.favoriteGenres
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const presetsOrdered = PROFILE_GENRE_OPTIONS.filter((p) =>
+        tokens.some((t) => normalizeText(t) === normalizeText(p))
+      )
+      return { ...prev, favoriteGenres: [...presetsOrdered, ...extraToks].join(', ') }
+    })
+    setSaveState('idle')
+    setSaveError('')
+  }
+
+  function closeProfileEditing() {
+    setIsEditing(false)
+    setProfileEditSection('')
+    setSaveError('')
+  }
+
   const handleAvatarFileChange = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -697,7 +798,7 @@ export default function ProfileTab({
     try {
       await onSaveProfile(form)
       setSaveState('saved')
-      setIsEditing(false)
+      closeProfileEditing()
     } catch (error) {
       setSaveState('idle')
       setSaveError(error instanceof Error ? error.message : 'Opslaan mislukt. Probeer opnieuw.')
@@ -737,134 +838,296 @@ export default function ProfileTab({
   }
 
   if (isEditing) {
+    const showSecurityInMenu = hasSupabaseConfig && supabase
+    const saveButtonClasses =
+      'w-full rounded-xl bg-gradient-to-r from-rose-500 via-fuchsia-500 to-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60'
+
     return (
       <section className="space-y-4">
         <article className="rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-lg shadow-sky-500/10 backdrop-blur-xl">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm text-zinc-400">Profiel bewerken</p>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {profileEditSection && (
+              <button
+                type="button"
+                onClick={() => setProfileEditSection('')}
+                className="rounded-lg border border-white/15 px-2.5 py-1 text-[11px] text-zinc-300 hover:border-white/30"
+              >
+                ← Overzicht
+              </button>
+            )}
+            <p className={`text-sm text-zinc-400 ${profileEditSection ? 'flex-1' : ''}`}>Profiel bewerken</p>
             <button
               type="button"
-              onClick={() => setIsEditing(false)}
-              className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
+              onClick={closeProfileEditing}
+              className="ml-auto rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300 hover:border-white/30"
             >
               Sluiten
             </button>
           </div>
-          <form className="space-y-3" onSubmit={handleSubmit}>
-            <label className="block text-sm text-zinc-300">
-              Profielfoto uploaden
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarFileChange}
-                className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
-              />
-            </label>
-            <label className="block text-sm text-zinc-300">
-              Weergavenaam
-              <input
-                value={form.displayName}
-                onChange={handleChange('displayName')}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Bijv. Alex de Vries"
-              />
-            </label>
-            <label className="block text-sm text-zinc-300">
-              Gebruikersnaam
-              <input
-                value={form.username}
-                onChange={handleChange('username')}
-                disabled={usernameFrozen}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2 disabled:cursor-not-allowed disabled:border-white/5 disabled:text-zinc-500"
-                placeholder="Bijv. alexbeats"
-                autoCapitalize="off"
-                autoCorrect="off"
-              />
-              <p className="mt-1 text-xs text-zinc-500">
-                {usernameFrozen
-                  ? 'Je gebruikersnaam kun je maar één keer kiezen; die staat nu vast.'
-                  : 'Je kunt nog een gebruikersnaam instellen van minimaal 3 tekens.'}
+
+          {!profileEditSection && (
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500">
+                Kies wat je wilt aanpassen. Je ziet eerst deze lijst; het invulvlak verschijnt pas na een keuze.
               </p>
-            </label>
-            <label className="block text-sm text-zinc-300">
-              Bio
-              <textarea
-                rows={3}
-                value={form.bio}
-                onChange={handleChange('bio')}
-                className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Waar ga jij muzikaal op aan?"
-              />
-            </label>
-            <label className="block text-sm text-zinc-300">
-              Favoriete genres
-              <input
-                value={form.favoriteGenres}
-                onChange={handleChange('favoriteGenres')}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Bijv. House, Techno, Indie Dance"
-              />
-            </label>
-            <label className="block text-sm text-zinc-300">
-              Favoriete artiesten
-              <input
-                value={form.favoriteArtists}
-                onChange={handleChange('favoriteArtists')}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Bijv. BICEP, The Blaze"
-              />
-              {favoriteArtistSuggestions.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {favoriteArtistSuggestions.map((artist) => (
-                    <button
-                      key={`favorite-artist-suggestion-${artist}`}
-                      type="button"
-                      onClick={() => applyFavoriteArtistSuggestion(artist)}
-                      className="rounded-full border border-white/10 bg-zinc-950 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-sky-400/70 hover:text-sky-200"
-                    >
-                      {artist}
-                    </button>
-                  ))}
+              {[
+                { id: 'identity', title: 'Naam & profielfoto', desc: 'Weergavenaam, gebruikersnaam, foto' },
+                { id: 'bio', title: 'Bio', desc: 'Korte beschrijving' },
+                { id: 'taste', title: 'Genres & artiesten', desc: 'Favorieten op je profiel' },
+                { id: 'location', title: 'Locatie voor events', desc: 'Stad en zoekgebied' },
+              ].map((item) => (
+                <button
+                  key={`edit-menu-${item.id}`}
+                  type="button"
+                  onClick={() => setProfileEditSection(item.id)}
+                  className="w-full rounded-xl border border-white/10 bg-zinc-950/55 px-3 py-3 text-left transition hover:border-sky-400/45 hover:bg-zinc-950/85"
+                >
+                  <p className="text-sm font-semibold text-white">{item.title}</p>
+                  <p className="text-xs text-zinc-500">{item.desc}</p>
+                </button>
+              ))}
+              {showSecurityInMenu && (
+                <button
+                  type="button"
+                  onClick={() => setProfileEditSection('security')}
+                  className="w-full rounded-xl border border-white/10 bg-zinc-950/55 px-3 py-3 text-left transition hover:border-sky-400/45 hover:bg-zinc-950/85"
+                >
+                  <p className="text-sm font-semibold text-white">Wachtwoord</p>
+                  <p className="text-xs text-zinc-500">Nieuw inlogwachtwoord instellen</p>
+                </button>
+              )}
+              {onDeleteAccount && (
+                <div className="border-t border-white/10 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => onDeleteAccount()}
+                    className="text-[11px] text-zinc-500 underline-offset-2 transition hover:text-red-400/90 hover:underline"
+                  >
+                    Account verwijderen
+                  </button>
                 </div>
               )}
-            </label>
-            <label className="block text-sm text-zinc-300">
-              Stad
-              <input
-                value={form.city}
-                onChange={handleChange('city')}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Bijv. Amsterdam"
-                list="lyyve-city-suggestions"
-              />
-              <datalist id="lyyve-city-suggestions">
-                {citySuggestions.map((city) => (
-                  <option key={`city-suggestion-${city}`} value={city} />
-                ))}
-              </datalist>
-            </label>
-            <label className="block text-sm text-zinc-300">
-              Straal voor events ontdekken ({Number(form.eventRadiusKm ?? 75)} km)
-              <input
-                type="range"
-                min="25"
-                max="250"
-                step="25"
-                value={Number(form.eventRadiusKm ?? 75)}
-                onChange={(event) => setForm((prev) => ({ ...prev, eventRadiusKm: Number(event.target.value) }))}
-                className="mt-1 w-full accent-cyan-400"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={!hasChanges || saveState === 'saving'}
-              className="w-full rounded-xl bg-gradient-to-r from-rose-500 via-fuchsia-500 to-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saveState === 'saving' ? 'Opslaan...' : 'Profiel opslaan'}
-            </button>
-            {saveState === 'saved' && <p className="text-xs text-emerald-300">Profiel opgeslagen.</p>}
-            {saveError && <p className="text-xs text-amber-300">{saveError}</p>}
-          </form>
+            </div>
+          )}
+
+          {profileEditSection === 'identity' && (
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              <label className="block text-sm text-zinc-300">
+                Profielfoto uploaden
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarFileChange}
+                  className="mt-1 block w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                Weergavenaam
+                <input
+                  value={form.displayName}
+                  onChange={handleChange('displayName')}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                  placeholder="Bijv. Alex de Vries"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                Gebruikersnaam
+                <input
+                  value={form.username}
+                  onChange={handleChange('username')}
+                  disabled={usernameFrozen}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2 disabled:cursor-not-allowed disabled:border-white/5 disabled:text-zinc-500"
+                  placeholder="Bijv. alexbeats"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                />
+                <p className="mt-1 text-xs text-zinc-500">
+                  {usernameFrozen
+                    ? 'Je gebruikersnaam kun je maar één keer kiezen; die staat nu vast.'
+                    : 'Je kunt nog een gebruikersnaam instellen van minimaal 3 tekens.'}
+                </p>
+              </label>
+              <button type="submit" disabled={!hasChanges || saveState === 'saving'} className={saveButtonClasses}>
+                {saveState === 'saving' ? 'Opslaan…' : 'Opslaan'}
+              </button>
+              {saveError && <p className="text-xs text-amber-300">{saveError}</p>}
+            </form>
+          )}
+
+          {profileEditSection === 'bio' && (
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              <label className="block text-sm text-zinc-300">
+                Bio
+                <textarea
+                  rows={4}
+                  value={form.bio}
+                  onChange={handleChange('bio')}
+                  className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                  placeholder="Waar ga jij muzikaal op aan?"
+                />
+              </label>
+              <button type="submit" disabled={!hasChanges || saveState === 'saving'} className={saveButtonClasses}>
+                {saveState === 'saving' ? 'Opslaan…' : 'Opslaan'}
+              </button>
+              {saveError && <p className="text-xs text-amber-300">{saveError}</p>}
+            </form>
+          )}
+
+          {profileEditSection === 'taste' && (
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              <div>
+                <p className="text-sm text-zinc-300">Favoriete genres</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Tik op een tegel om te selecteren; optioneel nog eigen genres toevoegen.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {PROFILE_GENRE_OPTIONS.map((genre) => {
+                    const parsed = form.favoriteGenres
+                      .split(',')
+                      .map((item) => item.trim())
+                      .filter(Boolean)
+                    const isActive = parsed.some((item) => item.toLowerCase() === genre.toLowerCase())
+                    return (
+                      <button
+                        key={`profile-genre-${genre}`}
+                        type="button"
+                        onClick={() => toggleProfileGenre(genre)}
+                        className={`rounded-full border px-2.5 py-1.5 text-[11px] transition ${
+                          isActive
+                            ? 'border-cyan-300/65 bg-cyan-500/20 text-cyan-100'
+                            : 'border-white/10 bg-zinc-950 text-zinc-300 hover:border-cyan-300/40'
+                        }`}
+                      >
+                        {genre}
+                      </button>
+                    )
+                  })}
+                </div>
+                <label className="mt-3 block text-sm text-zinc-300">
+                  Andere genres (optioneel)
+                  <input
+                    value={favoriteGenresExtrasValue()}
+                    onChange={(event) => setFavoriteGenresExtrasRaw(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                    placeholder="Bijv. UK Funky — komma tussen meerdere"
+                  />
+                </label>
+              </div>
+              <label className="block text-sm text-zinc-300">
+                Favoriete artiesten
+                <input
+                  value={form.favoriteArtists}
+                  onChange={handleChange('favoriteArtists')}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                  placeholder="Bijv. BICEP, The Blaze"
+                />
+                {favoriteArtistSuggestions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {favoriteArtistSuggestions.map((artist) => (
+                      <button
+                        key={`favorite-artist-suggestion-${artist}`}
+                        type="button"
+                        onClick={() => applyFavoriteArtistSuggestion(artist)}
+                        className="rounded-full border border-white/10 bg-zinc-950 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-sky-400/70 hover:text-sky-200"
+                      >
+                        {artist}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </label>
+              <button type="submit" disabled={!hasChanges || saveState === 'saving'} className={saveButtonClasses}>
+                {saveState === 'saving' ? 'Opslaan…' : 'Opslaan'}
+              </button>
+              {saveError && <p className="text-xs text-amber-300">{saveError}</p>}
+            </form>
+          )}
+
+          {profileEditSection === 'location' && (
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              <label className="block text-sm text-zinc-300">
+                Stad
+                <input
+                  value={form.city}
+                  onChange={handleChange('city')}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-sky-400 placeholder:text-zinc-500 focus:ring-2"
+                  placeholder="Bijv. Amsterdam"
+                  list="lyyve-city-suggestions-edit"
+                />
+                <datalist id="lyyve-city-suggestions-edit">
+                  {citySuggestions.map((city) => (
+                    <option key={`city-suggestion-edit-${city}`} value={city} />
+                  ))}
+                </datalist>
+              </label>
+              <label className="block text-sm text-zinc-300">
+                Straal voor events ontdekken ({Number(form.eventRadiusKm ?? 75)} km)
+                <input
+                  type="range"
+                  min="25"
+                  max="250"
+                  step="25"
+                  value={Number(form.eventRadiusKm ?? 75)}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, eventRadiusKm: Number(event.target.value) }))
+                  }
+                  className="mt-1 w-full accent-cyan-400"
+                />
+              </label>
+              <button type="submit" disabled={!hasChanges || saveState === 'saving'} className={saveButtonClasses}>
+                {saveState === 'saving' ? 'Opslaan…' : 'Opslaan'}
+              </button>
+              {saveError && <p className="text-xs text-amber-300">{saveError}</p>}
+            </form>
+          )}
+
+          {profileEditSection === 'security' && showSecurityInMenu && (
+            <div>
+              <p className="text-xs text-zinc-500">
+                Stel een nieuw inlogwachtwoord in voor dit account (met e‑mail+wachtwoord inloggen).
+              </p>
+              <form className="mt-3 space-y-3" onSubmit={handlePasswordUpdate}>
+                <label className="block text-sm text-zinc-300">
+                  Nieuw wachtwoord
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(event) => {
+                      setNewPassword(event.target.value)
+                      setPasswordChangeMessage('')
+                    }}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-emerald-400/80 placeholder:text-zinc-500 focus:ring-2"
+                    placeholder="Min. 10 tekens, hoofd-/kleine letter…"
+                  />
+                </label>
+                <label className="block text-sm text-zinc-300">
+                  Bevestig wachtwoord
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmNewPassword}
+                    onChange={(event) => {
+                      setConfirmNewPassword(event.target.value)
+                      setPasswordChangeMessage('')
+                    }}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-emerald-400/80 placeholder:text-zinc-500 focus:ring-2"
+                    placeholder="Herhaal wachtwoord"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={passwordChangeBusy || !newPassword.trim() || !confirmNewPassword.trim()}
+                  className="w-full rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300/65 disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  {passwordChangeBusy ? 'Bezig…' : 'Wachtwoord opslaan'}
+                </button>
+                {passwordChangeMessage && (
+                  <p className="text-xs text-zinc-300">{passwordChangeMessage}</p>
+                )}
+              </form>
+            </div>
+          )}
         </article>
       </section>
     )
@@ -1181,7 +1444,10 @@ export default function ProfileTab({
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setIsEditing(true)}
+            onClick={() => {
+              setProfileEditSection('')
+              setIsEditing(true)
+            }}
             className="rounded-xl border border-white/15 bg-zinc-950/70 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/30"
           >
             Profiel bewerken
@@ -1196,67 +1462,7 @@ export default function ProfileTab({
             </button>
           )}
         </div>
-        {onDeleteAccount && (
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={() => onDeleteAccount()}
-              className="text-[11px] text-zinc-500 underline-offset-2 transition hover:text-red-400/90 hover:underline"
-            >
-              Account verwijderen
-            </button>
-          </div>
-        )}
       </article>
-
-      {hasSupabaseConfig && supabase && (
-        <article className="rounded-3xl border border-emerald-300/25 bg-zinc-900/65 p-4 shadow-lg shadow-emerald-500/10 backdrop-blur-xl">
-          <h3 className="text-base font-semibold text-white">
-            Beveiliging<span className="text-emerald-300">.</span>
-          </h3>
-          <p className="mt-2 text-xs text-zinc-400">Stel een nieuw inlogwachtwoord in (alleen dit app-account).</p>
-          <form className="mt-3 space-y-3" onSubmit={handlePasswordUpdate}>
-            <label className="block text-sm text-zinc-300">
-              Nieuw wachtwoord
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={(event) => {
-                  setNewPassword(event.target.value)
-                  setPasswordChangeMessage('')
-                }}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-emerald-400/80 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Min. 10 tekens, hoofd-/kleine letter…"
-              />
-            </label>
-            <label className="block text-sm text-zinc-300">
-              Bevestig wachtwoord
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={confirmNewPassword}
-                onChange={(event) => {
-                  setConfirmNewPassword(event.target.value)
-                  setPasswordChangeMessage('')
-                }}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-white outline-none ring-emerald-400/80 placeholder:text-zinc-500 focus:ring-2"
-                placeholder="Herhaal wachtwoord"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={passwordChangeBusy || !newPassword.trim() || !confirmNewPassword.trim()}
-              className="w-full rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300/65 disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              {passwordChangeBusy ? 'Bezig…' : 'Wachtwoord opslaan'}
-            </button>
-            {passwordChangeMessage && (
-              <p className="text-xs text-zinc-300">{passwordChangeMessage}</p>
-            )}
-          </form>
-        </article>
-      )}
 
       <article className="rounded-3xl border border-white/10 bg-zinc-900/65 p-4 shadow-lg shadow-fuchsia-500/10 backdrop-blur-xl">
         <div className="mb-3 flex items-center gap-6">
