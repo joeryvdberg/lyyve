@@ -167,6 +167,7 @@ export default function AuthScreen({ forceReset = false }) {
   const [artistPool, setArtistPool] = useState([])
   const [captchaToken, setCaptchaToken] = useState('')
   const [captchaWidgetNonce, setCaptchaWidgetNonce] = useState(0)
+  const [lastPasswordResetRequestedAtIso, setLastPasswordResetRequestedAtIso] = useState('')
   const urlAuthMessage = getAuthMessageFromUrl()
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
   const captchaEnabled = Boolean(turnstileSiteKey)
@@ -350,6 +351,7 @@ export default function AuthScreen({ forceReset = false }) {
     } catch (error) {
       setMessage(mapAuthErrorMessage(error, 'Resetmail versturen mislukt.'))
     } finally {
+      setLastPasswordResetRequestedAtIso(new Date().toISOString())
       setLoading(false)
     }
   }
@@ -726,6 +728,17 @@ export default function AuthScreen({ forceReset = false }) {
           )}
 
           {(message || urlAuthMessage) && <p className="mt-3 text-xs text-zinc-300">{message || urlAuthMessage}</p>}
+          {mode === 'login' && lastPasswordResetRequestedAtIso && (
+            <p className="mt-2 text-[10px] text-zinc-600">
+              Laatste reset-aanvraag (alleen hier op dit apparaat):{' '}
+              <span className="font-medium text-zinc-500 tabular-nums">
+                {new Date(lastPasswordResetRequestedAtIso).toLocaleString('nl-NL', {
+                  dateStyle: 'short',
+                  timeStyle: 'medium',
+                })}
+              </span>
+            </p>
+          )}
         </article>
       </div>
     </div>
