@@ -43,8 +43,14 @@ function getAuthMessageFromUrl() {
   return 'De authenticatielink kon niet verwerkt worden. Probeer opnieuw.'
 }
 
-function mapAuthErrorMessage(error) {
+function mapAuthErrorMessage(error, fallbackMessage = 'Inloggen mislukt.') {
   const raw = String(error?.message || '').toLowerCase()
+  const status =
+    typeof error?.status === 'number'
+      ? error.status
+      : typeof error?.code === 'number'
+        ? error.code
+        : null
   if (
     raw.includes('user already registered') ||
     raw.includes('already registered') ||
@@ -64,9 +70,15 @@ function mapAuthErrorMessage(error) {
     raw.includes('too many requests') ||
     raw.includes('rate limit') ||
     raw.includes('over_email_send_rate_limit') ||
-    raw.includes('over_request_rate_limit')
+    raw.includes('over_request_rate_limit') ||
+    raw.includes('email rate limit') ||
+    status === 429
   ) {
-    return 'Te veel pogingen in korte tijd. Wacht even en probeer het daarna opnieuw.'
+    return (
+      'Te veel e-mailverzoeken in korte tijd (limiet bij Supabase of je SMTP). ' +
+      'Wacht zo’n 30–60 minuten en vraag daarna nog één keer een mail aan. ' +
+      'Kijk ook in spam/promoties.'
+    )
   }
   if (raw.includes('email not confirmed') || raw.includes('email_not_confirmed')) {
     return 'Je e-mailadres is nog niet bevestigd. Check je inbox of klik op resend confirmation.'
@@ -74,7 +86,11 @@ function mapAuthErrorMessage(error) {
   if (raw.includes('captcha')) {
     return 'Captcha verificatie mislukt. Probeer opnieuw.'
   }
-  return error?.message || 'Inloggen mislukt.'
+  if (raw.includes('smtp') || raw.includes('delivery') || raw.includes('mail_provider')) {
+    return 'Kon de mail tijdelijk niet versturen. Probeer het later opnieuw; bij aanhouden: controleer Supabase Auth‑logs en je SMTP‑instellingen.'
+  }
+  if (error?.message && String(error.message).trim()) return error.message
+  return fallbackMessage
 }
 
 function normalizeUsername(value) {
@@ -308,7 +324,7 @@ export default function AuthScreen({ forceReset = false }) {
 
   async function handleForgotPassword() {
     if (!hasSupabaseConfig || !supabase) return
-    const trimmedEmail = email.trim()
+    const trimmedEmail = email.trim().toLowerCase()
     if (!trimmedEmail) {
       setMessage('Vul eerst je e-mail in en klik daarna opnieuw op wachtwoord vergeten.')
       return
@@ -324,12 +340,15 @@ export default function AuthScreen({ forceReset = false }) {
         captchaToken: captchaTokenForRequest,
       })
       if (error) throw error
-      setMessage('Resetmail verstuurd. Open de link in je mail om een nieuw wachtwoord in te stellen.')
+      setMessage(
+        'Staat bij dit adres een account met wachtwoord? Dan wordt een resetmail gestuurd (kan een paar minuten duren); check ook spam/promoties. ' +
+          'Alleen via Google gemeld? Probeer eerst “Ga verder met Google”. Meerdere mails achter elkaar? Er geldt een limiet—wacht 30–60 min en probeer opnieuw.'
+      )
       if (captchaEnabled) {
         consumeCaptchaToken()
       }
     } catch (error) {
-      setMessage(error?.message || 'Resetmail versturen mislukt.')
+      setMessage(mapAuthErrorMessage(error, 'Resetmail versturen mislukt.'))
     } finally {
       setLoading(false)
     }
@@ -377,7 +396,7 @@ export default function AuthScreen({ forceReset = false }) {
       if (error) throw error
       setMessage('Bevestigingsmail opnieuw verstuurd. Check je inbox en spamfolder.')
     } catch (error) {
-      setMessage(error?.message || 'Bevestigingsmail opnieuw versturen mislukt.')
+      setMessage(mapAuthErrorMessage(error, 'Bevestigingsmail opnieuw versturen mislukt.'))
     } finally {
       setResendLoading(false)
     }
