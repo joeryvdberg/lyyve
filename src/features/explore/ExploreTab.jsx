@@ -76,6 +76,39 @@ function getName(value) {
   return typeof value === 'string' ? value : value?.name ?? ''
 }
 
+function normalizeExternalHttpUrl(raw) {
+  const u = String(raw || '').trim()
+  if (!u) return ''
+  if (/^https?:\/\//i.test(u)) return u
+  if (u.startsWith('//')) return `https:${u}`
+  return ''
+}
+
+function getSpotifyArtistUrl(name, catalogEntry) {
+  const id = catalogEntry?.spotifyId
+  if (typeof id === 'string' && id.trim()) {
+    return `https://open.spotify.com/artist/${id.trim()}`
+  }
+  return `https://open.spotify.com/search/${encodeURIComponent(name)}`
+}
+
+function buildGoogleTicketSearch(event) {
+  const q = `tickets ${event.name} ${event.city || ''} ${event.venue || ''}`.replace(/\s+/g, ' ').trim()
+  return `https://www.google.com/search?q=${encodeURIComponent(q)}`
+}
+
+function getTicketLinks(event) {
+  const fromOffers =
+    Array.isArray(event.offers) && event.offers.length > 0
+      ? normalizeExternalHttpUrl(
+          (event.offers.find((o) => o?.url && normalizeExternalHttpUrl(o.url)) || event.offers[0])?.url
+        )
+      : ''
+  const primary = fromOffers || normalizeExternalHttpUrl(event.url)
+  const google = buildGoogleTicketSearch(event)
+  return { primary, google, hasPrimary: Boolean(primary) }
+}
+
 function dedupeEventsById(events = []) {
   const map = new Map()
   for (const event of events) {
@@ -193,18 +226,28 @@ async function fetchBandsintownArtistEvents(artistName, appId) {
   }
   const rows = await response.json()
   if (!Array.isArray(rows)) return []
-  return rows.map((item) => ({
-    id: String(item.id ?? `${artistName}-${item.datetime}`),
-    name: item.title || item?.venue?.name || artistName,
-    artist: artistName,
-    venue: item?.venue?.name || 'Venue volgt',
-    city: item?.venue?.city || '',
-    country: item?.venue?.country || '',
-    date: item.datetime || '',
-    url: item.url || '',
-    source: 'bandsintown',
-    type: 'Live event',
-  }))
+  return rows.map((item) => {
+    const offerList = Array.isArray(item.offers) ? item.offers : []
+    const firstOfferUrl = offerList.length
+      ? normalizeExternalHttpUrl(
+          (offerList.find((o) => o?.url && normalizeExternalHttpUrl(o.url)) || offerList[0])?.url
+        )
+      : ''
+    const trackingUrl = normalizeExternalHttpUrl(item.url)
+    return {
+      id: String(item.id ?? `${artistName}-${item.datetime}`),
+      name: item.title || item?.venue?.name || artistName,
+      artist: artistName,
+      venue: item?.venue?.name || 'Venue volgt',
+      city: item?.venue?.city || '',
+      country: item?.venue?.country || '',
+      date: item.datetime || '',
+      url: firstOfferUrl || trackingUrl || '',
+      offers: offerList,
+      source: 'bandsintown',
+      type: 'Live event',
+    }
+  })
 }
 
 async function fetchBandsintownNearbyEvents({ appId, artists, cityKey, targetCities }) {
@@ -268,6 +311,7 @@ export default function ExploreTab({
   const [eventDetailsById, setEventDetailsById] = useState({})
   const [eventDetailsLoadingId, setEventDetailsLoadingId] = useState('')
   const [peopleDirectory, setPeopleDirectory] = useState([])
+  const [wikiVisual, setWikiVisual] = useState({ imageUrl: '', pageUrl: '' })
 
   useEffect(() => {
     let mounted = true
@@ -435,7 +479,10 @@ export default function ExploreTab({
   }, [checkIns, mode, selectedName])
 
   useEffect(() => {
-    if (!selectedName || catalogEntry?.description) return
+    if (!selectedName) {
+      setWikiVisual({ imageUrl: '', pageUrl: '' })
+      return
+    }
 
     let mounted = true
 
@@ -456,12 +503,17 @@ export default function ExploreTab({
             data.extract ??
               'Nog geen korte info gevonden. Voeg later een eigen beschrijving toe in je database.'
           )
+          setWikiVisual({
+            imageUrl: data.thumbnail?.source || '',
+            pageUrl: data.content_urls?.desktop?.page || '',
+          })
         }
       } catch {
         if (mounted) {
           setFallbackSummary(
             'Nog geen korte info gevonden. Voeg later een eigen beschrijving toe in je database.'
           )
+          setWikiVisual({ imageUrl: '', pageUrl: '' })
         }
       } finally {
         if (mounted) {
@@ -474,7 +526,7 @@ export default function ExploreTab({
     return () => {
       mounted = false
     }
-  }, [catalogEntry, selectedName])
+  }, [selectedName])
 
   const displayedSummary =
     catalogEntry?.description ||
@@ -492,12 +544,6 @@ export default function ExploreTab({
   }, [liveEvents, profile?.city, profile?.eventRadiusKm])
 
   const locationLabel = profile?.city?.trim() || 'jouw regio'
-
-  function getTicketLink(event) {
-    if (event.url) return event.url
-    const query = encodeURIComponent(`${event.name} ${event.city} tickets`)
-    return `https://www.google.com/search?q=${query}`
-  }
 
   useEffect(() => {
     let mounted = true
@@ -740,29 +786,8 @@ export default function ExploreTab({
         </div>
       )}
 
-      {mode !== 'people' && selectedName && (
-        <article className="rounded-3xl border border-sky-400/20 bg-zinc-900/65 p-4 shadow-xl shadow-sky-500/10 backdrop-blur-xl">
-          <h3 className="text-lg font-semibold text-white">{selectedName}</h3>
-          {catalogEntry?.source && (
-            <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">
-              Dataset bron: {catalogEntry.source}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-zinc-400">
-            Gemiddelde Lyyve-rating:{' '}
-            <span className="font-semibold text-sky-300">
-              {averageRatingInfo && averageRatingInfo.count > 0
-                ? `${averageRatingInfo.average.toFixed(1)} / 10.0`
-                : 'Nog geen ratings'}
-            </span>
-            {averageRatingInfo && averageRatingInfo.count > 0
-              ? ` (${averageRatingInfo.count} check-ins)`
-              : ''}
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-            {summaryLoading ? 'Info laden...' : displayedSummary}
-          </p>
-        </article>
+      {mode !== 'people' && !selectedName && rankedItems.length > 0 && (
+        <p className="text-center text-[11px] text-zinc-600">Tik op een naam om de detailpagina te openen.</p>
       )}
 
       {mode !== 'people' && (
@@ -827,14 +852,49 @@ export default function ExploreTab({
                     <p>{eventDetailsById[event.id].description}</p>
                   )}
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <a
-                      href={getTicketLink(event)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex rounded-full border border-cyan-300/40 bg-cyan-500/15 px-3 py-1 font-medium text-cyan-200 hover:border-cyan-200/70"
-                    >
-                      Ticket / event openen
-                    </a>
+                    {(() => {
+                      const { primary, google, hasPrimary } = getTicketLinks(event)
+                      return (
+                        <>
+                          {hasPrimary && (
+                            <a
+                              href={primary}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex rounded-full border border-cyan-300/40 bg-cyan-500/15 px-3 py-1 font-medium text-cyan-200 hover:border-cyan-200/70"
+                            >
+                              Tickets (aanbieder)
+                            </a>
+                          )}
+                          <a
+                            href={google}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 font-medium text-zinc-200 hover:border-white/35"
+                          >
+                            {hasPrimary ? 'Tickets (Google)' : 'Zoek tickets'}
+                          </a>
+                        </>
+                      )
+                    })()}
+                    {event.artist &&
+                      event.artist !== 'Meerdere artiesten' &&
+                      event.artist !== 'Verschillende acts' &&
+                      event.artist !== 'Rotterdam Rave line-up' && (
+                        <a
+                          href={getSpotifyArtistUrl(
+                            event.artist,
+                            artists.find(
+                              (a) => normalizeText(getName(a)) === normalizeText(event.artist || '')
+                            ) || null
+                          )}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 font-medium text-emerald-100 hover:border-emerald-300/60"
+                        >
+                          Spotify: {event.artist}
+                        </a>
+                      )}
                     {eventDetailsById[event.id]?.moreInfoUrl && (
                       <a
                         href={eventDetailsById[event.id].moreInfoUrl}
@@ -857,6 +917,101 @@ export default function ExploreTab({
           )}
         </div>
       </article>
+      )}
+
+      {mode !== 'people' && selectedName && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/65 p-3 backdrop-blur-sm sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="explore-detail-title"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setSelectedName('')
+          }}
+        >
+          <article className="relative flex max-h-[90svh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/95 shadow-2xl shadow-fuchsia-500/20">
+            <div className="flex shrink-0 items-start justify-between gap-2 border-b border-white/10 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  {mode === 'artist' ? 'Artiest' : 'Venue / festival'}
+                </p>
+                <h2 id="explore-detail-title" className="truncate text-xl font-semibold text-white">
+                  {selectedName}
+                </h2>
+                {catalogEntry?.source && (
+                  <p className="mt-0.5 text-[10px] text-zinc-500">Dataset: {catalogEntry.source}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedName('')}
+                className="shrink-0 rounded-lg border border-white/15 px-2.5 py-1 text-xs text-zinc-300 hover:border-white/30"
+              >
+                Sluiten
+              </button>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+              {wikiVisual.imageUrl && (
+                <img
+                  src={wikiVisual.imageUrl}
+                  alt=""
+                  className="aspect-[21/9] w-full rounded-xl object-cover sm:aspect-[2/1]"
+                  loading="lazy"
+                />
+              )}
+              <p className="text-xs text-zinc-400">
+                Gemiddelde Lyyve-rating:{' '}
+                <span className="font-semibold text-sky-300">
+                  {averageRatingInfo && averageRatingInfo.count > 0
+                    ? `${averageRatingInfo.average.toFixed(1)} / 10.0`
+                    : 'Nog geen ratings'}
+                </span>
+                {averageRatingInfo && averageRatingInfo.count > 0
+                  ? ` (${averageRatingInfo.count} check-ins)`
+                  : ''}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {mode === 'artist' && (
+                  <a
+                    href={getSpotifyArtistUrl(selectedName, catalogEntry)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/45 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:border-emerald-400/70"
+                  >
+                    Spotify
+                  </a>
+                )}
+                {wikiVisual.pageUrl && (
+                  <a
+                    href={wikiVisual.pageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:border-white/35"
+                  >
+                    Wikipedia
+                  </a>
+                )}
+                {mode === 'venue' && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedName)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:border-white/35"
+                  >
+                    Google Maps
+                  </a>
+                )}
+              </div>
+              <p className="text-sm leading-relaxed text-zinc-300">
+                {summaryLoading ? 'Info laden…' : displayedSummary}
+              </p>
+              <p className="text-[10px] leading-relaxed text-zinc-600">
+                Wikipedia zoekt op titel—soms is het artikel niet exact over deze act. Spotify gebruikt een ID uit
+                onze catalogus als die er is; anders opent de Spotify-zoekpagina voor deze naam.
+              </p>
+            </div>
+          </article>
+        </div>
       )}
     </section>
   )
