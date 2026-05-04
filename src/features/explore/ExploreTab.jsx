@@ -963,12 +963,14 @@ export default function ExploreTab({
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {wikiVisual.imageUrl && (
-                <img
-                  src={wikiVisual.imageUrl}
-                  alt=""
-                  className="aspect-[21/9] w-full rounded-xl object-cover sm:aspect-[2/1]"
-                  loading="lazy"
-                />
+                <div className="flex justify-center overflow-hidden rounded-xl bg-zinc-950/80 ring-1 ring-white/10">
+                  <img
+                    src={wikiVisual.imageUrl}
+                    alt=""
+                    className="mx-auto max-h-[min(42svh,320px)] w-full object-contain object-center"
+                    loading="lazy"
+                  />
+                </div>
               )}
               <p className="text-xs text-zinc-400">
                 Gemiddelde Lyyve-rating:{' '}
