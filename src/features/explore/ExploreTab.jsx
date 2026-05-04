@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getCatalogEntries, getEventCache, saveEventCache } from '../../lib/db'
 import { hasSupabaseConfig, supabase } from '../../lib/supabase'
 
@@ -84,12 +84,48 @@ function normalizeExternalHttpUrl(raw) {
   return ''
 }
 
+function findBestArtistEntryForSpotify(artists, rawName) {
+  const target = normalizeText(rawName)
+  if (!target || !Array.isArray(artists)) return null
+  const candidates = artists.filter((item) => isRecognizableName(getName(item)))
+  const exact = candidates.find((item) => normalizeText(getName(item)) === target)
+  if (exact && String(exact.spotifyId || '').trim()) return exact
+
+  const withSpotify = candidates.filter((item) => String(item?.spotifyId || '').trim())
+  let best = null
+  let bestRank = -1
+  let bestPop = -1
+
+  for (const item of withSpotify) {
+    const n = normalizeText(getName(item))
+    if (!n) continue
+    let rank = -1
+    if (n === target) rank = 5000
+    else if (n.startsWith(target) || target.startsWith(n)) rank = 4000 - Math.min(200, Math.abs(n.length - target.length))
+    else if (n.includes(target)) rank = 3000 - Math.min(150, n.indexOf(target) * 3)
+    else if (target.includes(n) && n.length >= 6) rank = 2000 - (target.length - n.length)
+    if (rank < 0) continue
+    const pop = getPopularity(item)
+    if (rank > bestRank || (rank === bestRank && pop > bestPop)) {
+      bestRank = rank
+      bestPop = pop
+      best = item
+    }
+  }
+  if (best) return best
+  return exact || null
+}
+
 function getSpotifyArtistUrl(name, catalogEntry) {
   const id = catalogEntry?.spotifyId
   if (typeof id === 'string' && id.trim()) {
     return `https://open.spotify.com/artist/${id.trim()}`
   }
-  return `https://open.spotify.com/search/${encodeURIComponent(name)}`
+  const trimmed = String(name || '').trim()
+  if (trimmed) {
+    return `https://open.spotify.com/search/${encodeURIComponent(trimmed)}/artists`
+  }
+  return 'https://open.spotify.com/search/artists'
 }
 
 function buildGoogleTicketSearch(event) {
@@ -297,6 +333,8 @@ export default function ExploreTab({
   onOpenProfile,
   focusArtistName = '',
   onFocusArtistConsumed,
+  returnToFeedOnDetailClose = false,
+  onExploreDetailClosedFromFeed,
 }) {
   const datasetBase = import.meta.env.BASE_URL
   const [mode, setMode] = useState('artist')
@@ -472,6 +510,21 @@ export default function ExploreTab({
     const entries = mode === 'artist' ? artists : venues
     return entries.find((item) => normalizeText(getName(item)) === normalizeText(selectedName)) ?? null
   }, [artists, mode, selectedName, venues])
+
+  const spotifyArtistEntry = useMemo(() => {
+    if (mode !== 'artist' || !selectedName) return null
+    const fuzzy = findBestArtistEntryForSpotify(artists, selectedName)
+    if (fuzzy?.spotifyId) return fuzzy
+    if (catalogEntry?.spotifyId) return catalogEntry
+    return fuzzy || catalogEntry
+  }, [artists, catalogEntry, mode, selectedName])
+
+  const closeDetailModal = useCallback(() => {
+    setSelectedName('')
+    if (returnToFeedOnDetailClose) {
+      onExploreDetailClosedFromFeed?.()
+    }
+  }, [returnToFeedOnDetailClose, onExploreDetailClosedFromFeed])
 
   const averageRatingInfo = useMemo(() => {
     if (!selectedName) return null
@@ -895,9 +948,7 @@ export default function ExploreTab({
                         <a
                           href={getSpotifyArtistUrl(
                             event.artist,
-                            artists.find(
-                              (a) => normalizeText(getName(a)) === normalizeText(event.artist || '')
-                            ) || null
+                            findBestArtistEntryForSpotify(artists, event.artist || '')
                           )}
                           target="_blank"
                           rel="noreferrer"
@@ -937,7 +988,7 @@ export default function ExploreTab({
           aria-modal="true"
           aria-labelledby="explore-detail-title"
           onClick={(event) => {
-            if (event.target === event.currentTarget) setSelectedName('')
+            if (event.target === event.currentTarget) closeDetailModal()
           }}
         >
           <article className="relative flex max-h-[90svh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/95 shadow-2xl shadow-fuchsia-500/20">
@@ -955,7 +1006,7 @@ export default function ExploreTab({
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedName('')}
+                onClick={closeDetailModal}
                 className="shrink-0 rounded-lg border border-white/15 px-2.5 py-1 text-xs text-zinc-300 hover:border-white/30"
               >
                 Sluiten
@@ -986,7 +1037,7 @@ export default function ExploreTab({
               <div className="flex flex-wrap gap-2">
                 {mode === 'artist' && (
                   <a
-                    href={getSpotifyArtistUrl(selectedName, catalogEntry)}
+                    href={getSpotifyArtistUrl(selectedName, spotifyArtistEntry)}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/45 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:border-emerald-400/70"

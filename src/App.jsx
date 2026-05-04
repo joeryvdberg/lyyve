@@ -202,6 +202,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('feed')
   const [focusedFriendId, setFocusedFriendId] = useState('')
   const [pendingExploreArtist, setPendingExploreArtist] = useState('')
+  const [returnToFeedWhenExploreDetailCloses, setReturnToFeedWhenExploreDetailCloses] = useState(false)
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
   const [socialFeedItems, setSocialFeedItems] = useState([])
   const [socialFriends, setSocialFriends] = useState(friendProfiles)
@@ -1089,9 +1090,14 @@ function App() {
     setPendingExploreArtist('')
   }, [])
 
+  const handleExploreDetailClosedFromFeed = useCallback(() => {
+    setActiveTab('feed')
+  }, [])
+
   const handleOpenArtistFromFeed = useCallback((artistName) => {
     const trimmed = String(artistName || '').trim()
     if (!trimmed) return
+    setReturnToFeedWhenExploreDetailCloses(true)
     setPendingExploreArtist(trimmed)
     setActiveTab('explore')
   }, [])
@@ -1168,6 +1174,12 @@ function App() {
       !String(profile.favoriteArtists || '').trim()
   }, [profile.displayName, profile.favoriteArtists, profile.favoriteGenres, profile.username, session?.user?.id])
 
+  useEffect(() => {
+    if (activeTab !== 'explore') {
+      setReturnToFeedWhenExploreDetailCloses(false)
+    }
+  }, [activeTab])
+
   const activeView = useMemo(() => {
     if (activeTab === 'checkin') {
       return <CheckInTab onAddCheckIn={handleAddCheckIn} />
@@ -1195,6 +1207,8 @@ function App() {
           onOpenProfile={handleOpenProfileFromFeed}
           focusArtistName={pendingExploreArtist}
           onFocusArtistConsumed={handleConsumedExploreArtist}
+          returnToFeedOnDetailClose={returnToFeedWhenExploreDetailCloses}
+          onExploreDetailClosedFromFeed={handleExploreDetailClosedFromFeed}
         />
       )
     }
@@ -1234,7 +1248,7 @@ function App() {
         onFeedMutated={() => requestSocialFeedRefresh(true)}
       />
     )
-  }, [activeTab, badges, followSyncError, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleConsumedExploreArtist, handleDeleteAccount, handleDeleteCheckIn, handleOpenArtistFromFeed, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, pendingExploreArtist, profile, profileNeedsCompletion, requestSocialFeedRefresh, socialFeedError, socialFeedItems, socialFriends, session?.user])
+  }, [activeTab, badges, followSyncError, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleConsumedExploreArtist, handleDeleteAccount, handleDeleteCheckIn, handleExploreDetailClosedFromFeed, handleOpenArtistFromFeed, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, pendingExploreArtist, profile, profileNeedsCompletion, requestSocialFeedRefresh, returnToFeedWhenExploreDetailCloses, socialFeedError, socialFeedItems, socialFriends, session?.user])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone
