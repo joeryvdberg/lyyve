@@ -201,6 +201,7 @@ function App() {
   const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(recoveryFlagFromBrowserUrl)
   const [activeTab, setActiveTab] = useState('feed')
   const [focusedFriendId, setFocusedFriendId] = useState('')
+  const [pendingExploreArtist, setPendingExploreArtist] = useState('')
   const [myCheckIns, setMyCheckIns] = useState(seededCheckIns)
   const [socialFeedItems, setSocialFeedItems] = useState([])
   const [socialFriends, setSocialFriends] = useState(friendProfiles)
@@ -414,6 +415,8 @@ function App() {
           createdAt: item.createdAt || '',
           isFriendPost: false,
           friendId: '',
+          authorId: profile.id || session?.user?.id || '',
+          friendSnapshot: null,
         }))
 
         const localFriendItems = friendProfiles.flatMap((friend) =>
@@ -428,6 +431,16 @@ function App() {
             createdAt: item.createdAt || '',
             isFriendPost: true,
             friendId: friend.id,
+            authorId: friend.id,
+            friendSnapshot: {
+              id: friend.id,
+              username: friend.username || '',
+              displayName: friend.displayName || friend.username || 'Gebruiker',
+              bio: friend.bio || '',
+              avatarUrl: friend.avatarUrl || '',
+              city: friend.city || '',
+              checkIns: [],
+            },
           }))
         )
 
@@ -500,6 +513,19 @@ function App() {
       const mappedFeed = feedRows.map((row) => {
         const isOwn = row.user_id === session.user.id
         const linkedProfile = profilesById[row.user_id] ?? null
+        const authorId = row.user_id || ''
+        const friendSnapshot =
+          !isOwn && authorId
+            ? {
+                id: authorId,
+                username: linkedProfile?.username || `user-${String(authorId).slice(0, 8)}`,
+                displayName: linkedProfile?.display_name || linkedProfile?.username || 'Gebruiker',
+                bio: linkedProfile?.bio || '',
+                avatarUrl: linkedProfile?.avatar_url || '',
+                city: linkedProfile?.city || '',
+                checkIns: [],
+              }
+            : null
         return {
           id: row.id,
           user: isOwn
@@ -518,6 +544,8 @@ function App() {
           createdAt: row.created_at || '',
           isFriendPost: !isOwn,
           friendId: isOwn ? '' : row.user_id,
+          authorId,
+          friendSnapshot,
         }
       })
 
@@ -579,7 +607,7 @@ function App() {
     return () => {
       mounted = false
     }
-  }, [followingIds, myCheckIns, profile.displayName, profile.username, session?.user?.id, socialFeedRefreshTick])
+  }, [followingIds, myCheckIns, profile.displayName, profile.id, profile.username, session?.user?.id, socialFeedRefreshTick])
 
   useEffect(() => {
     if (!hasSupabaseConfig || !supabase || !session?.user?.id) return
@@ -1057,6 +1085,17 @@ function App() {
     setActiveTab('profile')
   }, [])
 
+  const handleConsumedExploreArtist = useCallback(() => {
+    setPendingExploreArtist('')
+  }, [])
+
+  const handleOpenArtistFromFeed = useCallback((artistName) => {
+    const trimmed = String(artistName || '').trim()
+    if (!trimmed) return
+    setPendingExploreArtist(trimmed)
+    setActiveTab('explore')
+  }, [])
+
   const handleToggleFollow = useCallback(
     async (friendId, friendSnapshot = null) => {
       if (!friendId) return
@@ -1154,6 +1193,8 @@ function App() {
           followingIds={followingIds}
           onToggleFollow={handleToggleFollow}
           onOpenProfile={handleOpenProfileFromFeed}
+          focusArtistName={pendingExploreArtist}
+          onFocusArtistConsumed={handleConsumedExploreArtist}
         />
       )
     }
@@ -1188,11 +1229,12 @@ function App() {
         onUpdateCheckIn={handleUpdateCheckIn}
         onDeleteCheckIn={handleDeleteCheckIn}
         onOpenProfile={handleOpenProfileFromFeed}
+        onOpenArtist={handleOpenArtistFromFeed}
         onManualRefresh={requestSocialFeedRefresh}
         onFeedMutated={() => requestSocialFeedRefresh(true)}
       />
     )
-  }, [activeTab, badges, followSyncError, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleDeleteAccount, handleDeleteCheckIn, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, profile, profileNeedsCompletion, requestSocialFeedRefresh, socialFeedError, socialFeedItems, socialFriends])
+  }, [activeTab, badges, followSyncError, focusedFriendId, followerIds, followingIds, handleAddCheckIn, handleConsumedExploreArtist, handleDeleteAccount, handleDeleteCheckIn, handleOpenArtistFromFeed, handleOpenProfileFromFeed, handleSaveProfile, handleSignOut, handleToggleFollow, handleUpdateCheckIn, myCheckIns, pendingExploreArtist, profile, profileNeedsCompletion, requestSocialFeedRefresh, socialFeedError, socialFeedItems, socialFriends, session?.user])
 
   const profileInitials = avatarInitials(profile.displayName)
   const showSplash = !splashGone

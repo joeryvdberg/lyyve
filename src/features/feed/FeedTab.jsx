@@ -14,6 +14,7 @@ export default function FeedTab({
   onUpdateCheckIn,
   onDeleteCheckIn,
   onOpenProfile,
+  onOpenArtist,
   onManualRefresh,
   onFeedMutated,
 }) {
@@ -45,6 +46,8 @@ export default function FeedTab({
         createdAt: item.createdAt || '',
         isFriendPost: false,
         friendId: '',
+        authorId: profile.id || currentUser?.id || '',
+        friendSnapshot: null,
       }))
   const sortedFeedItems = useMemo(
     () =>
@@ -317,13 +320,34 @@ export default function FeedTab({
                   <p className="mt-1 text-sm text-zinc-300">
                     <button
                       type="button"
-                      onClick={() => onOpenProfile?.(item.friendId || '')}
+                      onClick={() => {
+                        const authorId = item.authorId || item.friendId || currentUser?.id || profile?.id || ''
+                        if (!authorId) return
+                        const isMe =
+                          (currentUser?.id && authorId === currentUser.id) ||
+                          (profile?.id && authorId === profile.id)
+                        if (isMe) {
+                          onOpenProfile?.('', null)
+                          return
+                        }
+                        onOpenProfile?.(authorId, item.friendSnapshot ?? null)
+                      }}
                       className="font-semibold text-white underline-offset-2 hover:underline"
                     >
                       {item.user}
                     </button>{' '}
                     zag{' '}
-                    <span className="font-semibold text-white">{item.artist}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const name = String(item.artist || '').trim()
+                        if (!name) return
+                        onOpenArtist?.(name)
+                      }}
+                      className="font-semibold text-white underline-offset-2 hover:underline"
+                    >
+                      {item.artist}
+                    </button>
                   </p>
                   <p className="mt-1 text-xs text-zinc-400">{item.event}</p>
                 </div>

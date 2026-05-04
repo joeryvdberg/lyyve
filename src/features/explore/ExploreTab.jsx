@@ -295,6 +295,8 @@ export default function ExploreTab({
   followingIds = [],
   onToggleFollow,
   onOpenProfile,
+  focusArtistName = '',
+  onFocusArtistConsumed,
 }) {
   const datasetBase = import.meta.env.BASE_URL
   const [mode, setMode] = useState('artist')
@@ -312,6 +314,15 @@ export default function ExploreTab({
   const [eventDetailsLoadingId, setEventDetailsLoadingId] = useState('')
   const [peopleDirectory, setPeopleDirectory] = useState([])
   const [wikiVisual, setWikiVisual] = useState({ imageUrl: '', pageUrl: '' })
+
+  useEffect(() => {
+    const name = String(focusArtistName || '').trim()
+    if (!name) return
+    setMode('artist')
+    setQuery(name)
+    setSelectedName(name)
+    onFocusArtistConsumed?.()
+  }, [focusArtistName, onFocusArtistConsumed])
 
   useEffect(() => {
     let mounted = true
